@@ -1,13 +1,12 @@
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 import torch
 
-# Load model and tokenizer
-tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-small")
-model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-small")
-
 # Use MPS if available, else fallback to CPU
 device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
+# Load model and tokenizer
+tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-base")
+model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-base")
 model = model.to(device)
 
 input_text = ""
