@@ -1,3 +1,6 @@
 venv/
 venv-tf/
 venv-torch/
+
+__pycache__/
+*.pyc
