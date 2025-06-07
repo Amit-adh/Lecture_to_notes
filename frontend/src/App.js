@@ -1,8 +1,8 @@
 function App() {
   return (
     <div>
-      <h1>Hello, React!</h1>
-      <p>This is my custom React app.</p>
+      <h1>My Lecture Dashboard</h1>
+      <p>Welcome to the platform.</p>
     </div>
   );
 }
