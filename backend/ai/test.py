@@ -21,4 +21,3 @@ while input_text != "exit":
     # Generate output
     outputs = model.generate(input_ids)
     print(tokenizer.decode(outputs[0], skip_special_tokens=True))
-
