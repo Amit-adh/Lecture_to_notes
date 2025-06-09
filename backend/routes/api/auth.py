@@ -5,5 +5,6 @@ auth = Blueprint("auth", __name__)
 @auth.route("/login", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-        pass
-        # username = 
+        username = request.form.get('username', '')
+        password = request.form.get('password', '')
+        

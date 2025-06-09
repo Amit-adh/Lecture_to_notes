@@ -5,8 +5,8 @@ import torch
 device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
 # Load model and tokenizer
-tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-base")
-model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-base")
+tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-xl")
+model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-xl")
 model = model.to(device)
 
 input_text = ""
