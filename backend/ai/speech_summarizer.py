@@ -15,6 +15,7 @@ model = AutoModelForSpeechSeq2Seq.from_pretrained(
 
 processor = AutoProcessor.from_pretrained(model_id)
 
+#settings changed a little for max util in collab
 pipe = pipeline(
     "automatic-speech-recognition",
     model=model,
@@ -26,10 +27,12 @@ pipe = pipeline(
     stride_length_s=(5, 5),
 )
 
+#transcription of the recording
 result = pipe("test2.mp3", generate_kwargs={"return_timestamps": False, "num_beams": 1})
 # print(result["text"])
 
 
+#summary of the transcription
 summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
 summary = summarizer(result['text'], max_length=200, min_length=30, do_sample=False)
 print(summary[0]['summary_text'])
