@@ -3,15 +3,17 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const navigate = useNavigate(); // ✅ Add this just after the useState hooks
+
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log('Login submitted:', { email, password });
+    console.log('Login submitted:', { username, password });
     // TODO: handle login (e.g., API call)
 
-    if (email === 'user1' && password === 'pass1') {    // basic hardcoded login for beginning
+    if (username === 'user1' && password === 'pass1') {    // basic hardcoded login for beginning
         navigate('/dashboard');
       } else {
         alert('Invalid credentials');
@@ -23,10 +25,10 @@ const Login = () => {
       <h2>Login</h2>
       <form onSubmit={handleSubmit} style={styles.form}>
         <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          type="text"
+          placeholder="Username"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
           required
           style={styles.input}
         />
