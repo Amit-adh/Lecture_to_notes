@@ -1,9 +1,17 @@
-import React from 'react';
-import Login from './pages/login'; 
+// src/App.js
+import React, { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Login from './pages/loginogin';
+import Dashboard from './pages/dashboard';
 
 function App() {
   return (
-    <Login/>
+    <Router>
+      <Routes>
+        <Route path="/" element={<Login />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+      </Routes>
+    </Router>
   );
 }
 

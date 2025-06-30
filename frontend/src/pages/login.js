@@ -1,5 +1,6 @@
 // src/pages/Login.jsx
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -9,7 +10,13 @@ const Login = () => {
     e.preventDefault();
     console.log('Login submitted:', { email, password });
     // TODO: handle login (e.g., API call)
-  };
+
+    if (email === 'user1' && password === 'pass1') {    // basic hardcoded login for beginning
+        navigate('/dashboard');
+      } else {
+        alert('Invalid credentials');
+      }
+    };
 
   return (
     <div style={styles.container}>
