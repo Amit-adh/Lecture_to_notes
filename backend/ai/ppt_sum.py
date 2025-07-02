@@ -6,9 +6,8 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.documents import Document
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.llms import HuggingFacePipeline
-from transformers import pipeline
+from langchain_community.embeddings import OllamaEmbeddings
+from langchain_community.chat_models import ChatOllama
 
 def load_pptx_text(pptx_path):
     """
@@ -28,7 +27,7 @@ def load_pptx_text(pptx_path):
 
 def summarize_pptx():
     """
-    Main function to summarize PPTX using HuggingFace models (free, local).
+    Main function to summarize PPTX using Ollama models locally.
     """
     pptx_path = input("Please enter the full path to your PPTX file: ")
     if not os.path.exists(pptx_path):
@@ -42,16 +41,15 @@ def summarize_pptx():
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
         splits = text_splitter.split_documents(docs)
 
-        # --- Embeddings (Free) ---
-        print("Creating vector store with HuggingFace embeddings...")
-        embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")  # Small, fast, free
+        # --- Embeddings using Ollama ---
+        print("Creating vector store with Ollama embeddings...")
+        embeddings = OllamaEmbeddings(model="nomic-embed-text")  # or "mxbai-embed-large" if supported
         vectorstore = FAISS.from_documents(splits, embeddings)
         retriever = vectorstore.as_retriever()
 
-        # --- HuggingFace LLM for Summarization ---
-        print("Loading summarization model...")
-        summarizer_pipe = pipeline("text2text-generation", model="google/flan-t5-base", max_new_tokens=300)
-        llm = HuggingFacePipeline(pipeline=summarizer_pipe)
+        # --- Ollama LLM for Summarization ---
+        print("Loading Ollama LLM...")
+        llm = ChatOllama(model="llama3.2")  # or mistral, codellama, etc.
 
         # --- Prompt Template ---
         prompt_template = """Use the following context to answer the question:
