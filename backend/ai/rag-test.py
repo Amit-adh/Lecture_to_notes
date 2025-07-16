@@ -2,43 +2,43 @@ import torch
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 import requests
 
-# # --- STEP 1: Whisper Transcription ---
-# print("Loading model...")
+# --- STEP 1: Whisper Transcription ---
+print("Loading model...")
 
-# device = 0 if torch.cuda.is_available() else -1
-
-
-# model = AutoModelForSpeechSeq2Seq.from_pretrained(
-#     "openai/whisper-large-v3",
-#     torch_dtype=torch.float16, #if torch.cuda.is_available() else torch.float32,
-#     low_cpu_mem_usage=True,
-#     use_safetensors=True
-#     #force_download=True  # force clean re-download
-# )
-
-# print("Loading processor...")
-
-# processor = AutoProcessor.from_pretrained("openai/whisper-large-v3")
-
-# print("Model and processor loaded successfully.")
+device = 0 if torch.cuda.is_available() else -1
 
 
-# pipe = pipeline(
-#     "automatic-speech-recognition",
-#     model=model,
-#     tokenizer=processor.tokenizer,
-#     feature_extractor=processor.feature_extractor,
-#     torch_dtype=torch.float16,
-#     device=device,
-#     chunk_length_s=30,
-#     stride_length_s=(5, 5),
-# )
+model = AutoModelForSpeechSeq2Seq.from_pretrained(
+    "openai/whisper-large-v3",
+    torch_dtype=torch.float16, #if torch.cuda.is_available() else torch.float32,
+    low_cpu_mem_usage=True,
+    use_safetensors=True
+    #force_download=True  # force clean re-download
+)
 
-# result = pipe("C:/Users/Dell/Downloads/test2.mp3", generate_kwargs={"return_timestamps": False, "num_beams": 1})
-# transcription = result["text"]
+print("Loading processor...")
 
-# print("TRANSCRIPT:")
-# print(transcription)
+processor = AutoProcessor.from_pretrained("openai/whisper-large-v3")
+
+print("Model and processor loaded successfully.")
+
+
+pipe = pipeline(
+    "automatic-speech-recognition",
+    model=model,
+    tokenizer=processor.tokenizer,
+    feature_extractor=processor.feature_extractor,
+    torch_dtype=torch.float16,
+    device=device,
+    chunk_length_s=30,
+    stride_length_s=(5, 5),
+)
+
+result = pipe("C:/Users/Dell/Downloads/test2.mp3", generate_kwargs={"return_timestamps": False, "num_beams": 1})
+transcription = result["text"]
+
+print("TRANSCRIPT:")
+print(transcription)
 
 # --- STEP 2: Summarization via Ollama ---
 # Make sure ollama is running and model (e.g., llama3) is pulled via: `ollama run llama3`
