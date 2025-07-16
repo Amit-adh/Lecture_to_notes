@@ -37,7 +37,7 @@ def summarize_pdf():
     retriever = vectorstore.as_retriever()
 
     # === Load LLM (Llama3.2 via Ollama) ===
-    llm = ChatOllama(model="llama3.2")
+    llm = ChatOllama(model="koesn/llama3-8b-instruct:latest")
 
     def format_docs(docs):
         return "\n\n".join(doc.page_content for doc in docs)
