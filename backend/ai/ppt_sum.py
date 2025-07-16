@@ -43,13 +43,13 @@ def summarize_pptx():
 
         # --- Embeddings using Ollama ---
         print("Creating vector store with Ollama embeddings...")
-        embeddings = OllamaEmbeddings(model="nomic-embed-text")  # or "mxbai-embed-large" if supported
+        embeddings = OllamaEmbeddings(model="snowflake-arctic-embed") 
         vectorstore = FAISS.from_documents(splits, embeddings)
         retriever = vectorstore.as_retriever()
 
         # --- Ollama LLM for Summarization ---
         print("Loading Ollama LLM...")
-        llm = ChatOllama(model="llama3.2")  # or mistral, codellama, etc.
+        llm = ChatOllama(model="koesn/llama3-8b-instruct:latest")  
 
         # --- Prompt Template ---
         prompt_template = """Use the following context to answer the question:

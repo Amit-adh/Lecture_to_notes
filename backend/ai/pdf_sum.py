@@ -32,12 +32,12 @@ def summarize_pdf():
         return
 
     # === Create Embeddings (using Ollama locally) ===
-    embeddings = OllamaEmbeddings(model="nomic-embed-text")
+    embeddings = OllamaEmbeddings(model="snowflake-arctic-embed")
     vectorstore = FAISS.from_documents(chunks, embeddings)
     retriever = vectorstore.as_retriever()
 
-    # === Load LLM (Llama3.2 via Ollama) ===
-    llm = ChatOllama(model="llama3.2")
+    # === Load LLM (via Ollama) ===
+    llm = ChatOllama(model="koesn/llama3-8b-instruct:latest")
 
     def format_docs(docs):
         return "\n\n".join(doc.page_content for doc in docs)
