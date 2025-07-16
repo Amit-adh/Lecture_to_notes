@@ -129,6 +129,14 @@ try:
         if topic:
             print("\n✅ RAG-BASED TOPIC:")
             print(topic)
+            
+        topic_prompt2 = f"Based on the following text, give me a question that I can ask a student who also read the following text\n\n{summary}"
+        response = llm.invoke(topic_prompt2)
+        topic = response.strip()
+
+        if topic:
+            print("\n✅ RAG-BASED TOPIC:")
+            print(topic)
     else:
         print("❌ Could not generate summary.")
 
