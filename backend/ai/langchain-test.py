@@ -150,3 +150,11 @@ def retrieval_chain(retriever):
 
     except Exception as e:
         print(f"❌ An error occurred during RAG summarization or topic extraction: {e}")
+        
+        
+def main():
+    transcription = audio_transcription()
+    retriever = vector_create(transcription)
+    retrieval_chain(retriever)
+    
+main()
