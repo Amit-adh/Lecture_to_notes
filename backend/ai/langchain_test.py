@@ -15,7 +15,6 @@ llm = Ollama(model=OLLAMA_MODEL)
 embeddings = OllamaEmbeddings(model=OLLAMA_MODEL)
 
 
-
 # --- STEP 1: Whisper Transcription ---
 def audio_transcription():
     print("Loading speech recognition model...")
@@ -72,6 +71,9 @@ def vector_create(transcription):
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=200, # Adjust chunk size as needed
         chunk_overlap=50 # Adjust overlap as needed
+    ) if (len(transcription) <= 1000) else RecursiveCharacterTextSplitter(
+        chunk_size=1000, # Adjust chunk size as needed
+        chunk_overlap=200 # Adjust overlap as needed
     )
     texts = text_splitter.create_documents([transcription])
     print(f"Created {len(texts)} chunks.")
@@ -152,9 +154,10 @@ def retrieval_chain(retriever):
         print(f"❌ An error occurred during RAG summarization or topic extraction: {e}")
         
         
-def main():
+def main_func():
     transcription = audio_transcription()
     retriever = vector_create(transcription)
     retrieval_chain(retriever)
     
-main()
+if __name__ == "__main__":
+    main_func()
