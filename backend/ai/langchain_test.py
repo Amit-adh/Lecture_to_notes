@@ -1,163 +1,198 @@
+import streamlit as st
+import os
 import torch
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
-import requests
-import sys # Used for clean exit
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import OllamaEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.chains import RetrievalQA
 from langchain_community.llms import Ollama
+# To handle video files, you'll need moviepy
+# pip install moviepy
+from moviepy.editor import VideoFileClip
 
-# --- SETUP ---
-AUDIO_FILE_PATH = "C:/Users/Dell/Downloads/test2.mp3"
-OLLAMA_MODEL = "koesn/llama3-8b-instruct:latest"
-llm = Ollama(model=OLLAMA_MODEL)
-embeddings = OllamaEmbeddings(model=OLLAMA_MODEL)
+# --- GLOBAL CONFIGURATION ---
+UPLOAD_DIRECTORY = "uploads"
+OLLAMA_MODEL = "llama3" # More standard model name, change if needed
 
+# Create the upload directory if it doesn't exist
+if not os.path.exists(UPLOAD_DIRECTORY):
+    os.makedirs(UPLOAD_DIRECTORY)
 
-# --- STEP 1: Whisper Transcription ---
-def audio_transcription():
-    print("Loading speech recognition model...")
+# --- MODEL & PIPELINE LOADING (CACHED) ---
+# This section uses Streamlit's caching to load models only once.
 
+@st.cache_resource
+def load_speech_recognition_pipeline():
+    """Loads and caches the Whisper model and pipeline."""
+    st.write("Cache miss: Loading speech recognition model...")
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
 
+    model = AutoModelForSpeechSeq2Seq.from_pretrained(
+        "openai/whisper-large-v3",
+        torch_dtype=torch_dtype,
+        low_cpu_mem_usage=True,
+        use_safetensors=True
+    )
+    processor = AutoProcessor.from_pretrained("openai/whisper-large-v3")
+
+    pipe = pipeline(
+        "automatic-speech-recognition",
+        model=model,
+        tokenizer=processor.tokenizer,
+        feature_extractor=processor.feature_extractor,
+        torch_dtype=torch_dtype,
+        device=device,
+        return_timestamps=True,
+    )
+    st.write("Speech recognition model loaded.")
+    return pipe
+
+@st.cache_resource
+def load_ollama_llm_and_embeddings():
+    """Loads and caches the Ollama LLM and embeddings models."""
+    st.write(f"Cache miss: Initializing Ollama with model '{OLLAMA_MODEL}'...")
+    llm = Ollama(model=OLLAMA_MODEL)
+    embeddings = OllamaEmbeddings(model=OLLAMA_MODEL)
+    # A simple check to see if the model is available.
     try:
-        model = AutoModelForSpeechSeq2Seq.from_pretrained(
-            "openai/whisper-large-v3",
-            torch_dtype=torch_dtype,
-            low_cpu_mem_usage=True,
-            use_safetensors=True
-        )
-        processor = AutoProcessor.from_pretrained("openai/whisper-large-v3")
-        print("Model and processor loaded successfully.")
+        llm.invoke("Hi")
+        st.write("Ollama models are ready.")
+        return llm, embeddings
+    except Exception as e:
+        st.error(f"Ollama connection failed. Is Ollama running? Error: {e}")
+        return None, None
 
-        pipe = pipeline(
-            "automatic-speech-recognition",
-            model=model,
-            tokenizer=processor.tokenizer,
-            feature_extractor=processor.feature_extractor,
-            torch_dtype=torch_dtype,
-            device=device,
-            return_timestamps=True,
-        )
+# --- BACKEND PROCESSING FUNCTIONS ---
+# These functions contain the logic from your script.
 
-        print(f"\nTranscribing audio file: {AUDIO_FILE_PATH}...")
-        with open(AUDIO_FILE_PATH, "rb") as f:
-            result = pipe(f.read(), generate_kwargs={"language": "english", "num_beams": 1})
+def transcribe_media_file(pipe, file_path):
+    """
+    Transcribes an audio or video file using the pre-loaded Whisper pipeline.
+    If it's a video, it extracts audio first.
+    """
+    try:
+        # Handle video files by extracting audio
+        if file_path.lower().endswith('.mp4'):
+            st.info("Video file detected. Extracting audio...")
+            video = VideoFileClip(file_path)
+            audio_path = os.path.join(UPLOAD_DIRECTORY, "temp_audio.mp3")
+            video.audio.write_audiofile(audio_path)
+            file_path = audio_path # Use the extracted audio for transcription
 
+        with st.spinner(f"Transcribing audio file... This may take a moment."):
+            with open(file_path, "rb") as f:
+                result = pipe(f.read(), generate_kwargs={"language": "english"})
+        
         transcription = result["text"].strip()
-
-        print("\n✅ TRANSCRIPTION COMPLETE:")
-        print(transcription)
         return transcription
 
-    except FileNotFoundError:
-        print(f"❌ ERROR: Audio file not found at '{AUDIO_FILE_PATH}'. Please check the path.")
-        sys.exit() # Exit the script if the file isn't found
     except Exception as e:
-        print(f"❌ An error occurred during transcription: {e}")
-        sys.exit()
+        st.error(f"An error occurred during transcription: {e}")
+        return None
 
+def process_transcription_with_rag(transcription, llm, embeddings):
+    """
+    Takes a transcription, creates a vector store, and performs RAG-based
+    summarization, topic extraction, and quiz generation.
+    """
+    if not transcription:
+        return None, None, None
 
-# --- STEP 2: Summarization & Topic Extraction via Ollama (RAG-based) ---
-def vector_create(transcription):
-    # 1. Initialize Ollama LLM and Embeddings
-    # llm = Ollama(model=OLLAMA_MODEL)
-    # embeddings = OllamaEmbeddings(model=OLLAMA_MODEL)
+    with st.spinner("Splitting text and creating vector store..."):
+        # 1. Split the transcription into chunks
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=200
+        )
+        texts = text_splitter.create_documents([transcription])
 
-    # 2. Split the transcription into chunks
-    print("\nSplitting transcription into chunks for RAG...")
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=200, # Adjust chunk size as needed
-        chunk_overlap=50 # Adjust overlap as needed
-    ) if (len(transcription) <= 1000) else RecursiveCharacterTextSplitter(
-        chunk_size=1000, # Adjust chunk size as needed
-        chunk_overlap=200 # Adjust overlap as needed
-    )
-    texts = text_splitter.create_documents([transcription])
-    print(f"Created {len(texts)} chunks.")
+        # 2. Create a vector store
+        vectorstore = Chroma.from_documents(documents=texts, embedding=embeddings)
+        retriever = vectorstore.as_retriever()
 
-    # 3. Create a vector store from the chunks
-    print("Creating vector store...")
-    # You can persist this to disk if you want to reuse it
-    vectorstore = Chroma.from_documents(documents=texts, embedding=embeddings)
-    retriever = vectorstore.as_retriever()
-    print("Vector store created.")
-    return retriever
+    with st.spinner("Performing RAG-based analysis..."):
+        # 3. Create RetrievalQA chain
+        qa_chain = RetrievalQA.from_chain_type(
+            llm=llm,
+            chain_type="stuff",
+            retriever=retriever,
+            return_source_documents=True
+        )
 
-
-def retrieval_chain(retriever):
-    # 4. Create a RetrievalQA chain for summarization
-    print("\nPerforming RAG-based summarization...")
-    qa_chain_summarize = RetrievalQA.from_chain_type(
-        llm=llm,
-        chain_type="stuff", # 'stuff' combines all retrieved documents into one prompt
-        retriever=retriever,
-        return_source_documents=True # Optional: to see which chunks were used
-    )
-
-    summary_query = "Summarize the provided text in a few sentences."
-    try:
-        summary_result = qa_chain_summarize.invoke({"query": summary_query})
+        # 4. Get Summary
+        summary_query = "Summarize the provided text in a few concise sentences."
+        summary_result = qa_chain.invoke({"query": summary_query})
         summary = summary_result.get("result", "").strip()
 
-        if summary:
-            print("\n✅ RAG-BASED SUMMARY COMPLETE:")
-            print(summary)
-            
-            # Optional: print source documents
-            # print("\nSource documents used for summary:")
-            # for doc in summary_result.get("source_documents", []):
-            #     print(f"- {doc.page_content[:100]}...")
-            
-            print("\n--- TOP CHUNKS USED FOR SUMMARY ---")
-            source_documents = summary_result.get("source_documents", [])
-            if source_documents:
-                for i, doc in enumerate(source_documents[:3]):
-                    print(f"\nChunk {i+1}:")
-                    print(doc.page_content)
-                    # You can also print metadata if available
-                    # if doc.metadata:
-                    #     print(f"  Metadata: {doc.metadata}")
-            else:
-                print("No source documents were returned for the summary. This might happen if the chain_type doesn't pass them, or if the retriever didn't find relevant chunks for the query.")
-            print("-----------------------------------")
+        # 5. Get Topic
+        topic_prompt = f"Based on the following text, what is the main topic? Answer in under 10 words.\n\n{summary}"
+        topic = llm.invoke(topic_prompt).strip()
 
-        # 5. Create a RetrievalQA chain for topic extraction (using the summary as context)
-            print("\nPerforming RAG-based topic extraction...")
-            # For topic extraction, we can directly query the LLM with the summary
-            # or create a separate RAG chain if the topic needs to be derived directly from the original transcription chunks.
-            # For simplicity and leveraging the already generated summary, we'll just query the LLM.
-            
-            topic_prompt = f"Based on the following text, what is the main topic? Answer in under 10 words.\n\n{summary}"
-            
-            # We'll use the direct LLM call here since the context is already summarized
-            response = llm.invoke(topic_prompt)
-            topic = response.strip()
+        # 6. Get Quiz Question
+        quiz_prompt = f"Based on the following text, generate one multiple-choice quiz question to test a student's understanding. Provide the question, options (A, B, C, D), and the correct answer.\n\n{summary}"
+        quiz = llm.invoke(quiz_prompt).strip()
 
-            if topic:
-                print("\n✅ RAG-BASED TOPIC:")
-                print(topic)
-                
-            topic_prompt2 = f"Based on the following text, give me a question that I can ask a student who also read the following text\n\n{summary}"
-            response = llm.invoke(topic_prompt2)
-            topic = response.strip()
+    return summary, topic, quiz
 
-            if topic:
-                print("\n✅ RAG-BASED TOPIC:")
-                print(topic)
+# --- STREAMLIT FRONTEND ---
+st.set_page_config(page_title="AI Media Analyzer", layout="wide")
+st.title("🤖 AI Media File Analyzer")
+st.markdown("Upload an audio (`.mp3`, `.wav`) or video (`.mp4`) file. The system will transcribe it, then use a RAG pipeline to summarize the content, identify the main topic, and generate a quiz question.")
+
+# Load models on startup and show status
+with st.status("🚀 Initializing AI models...", expanded=True) as status:
+    speech_pipe = load_speech_recognition_pipeline()
+    llm, embeddings = load_ollama_llm_and_embeddings()
+    if speech_pipe and llm and embeddings:
+        status.update(label="✅ AI Models are ready!", state="complete", expanded=False)
+    else:
+        status.update(label="⚠️ Model loading failed. Check logs.", state="error", expanded=True)
+
+# File Uploader
+media_file = st.file_uploader(
+    "Choose a media file",
+    type=["mp3", "wav", "mp4"]
+)
+
+if media_file is not None:
+    # Save the uploaded file locally
+    file_path = os.path.join(UPLOAD_DIRECTORY, media_file.name)
+    with open(file_path, "wb") as f:
+        f.write(media_file.getbuffer())
+
+    # Display the uploaded media
+    st.markdown("---")
+    file_type = media_file.type
+    if 'audio' in file_type:
+        st.audio(file_path)
+    elif 'video' in file_type:
+        st.video(file_path)
+
+    # Process button
+    if st.button("Analyze Media File", type="primary", use_container_width=True):
+        if not speech_pipe or not llm:
+            st.error("Models are not available. Cannot process the file.")
         else:
-            print("❌ Could not generate summary.")
+            # Step 1: Transcription
+            transcription = transcribe_media_file(speech_pipe, file_path)
+            
+            if transcription:
+                st.subheader("📝 Full Transcription")
+                st.text_area("Transcription", transcription, height=250)
 
-    except Exception as e:
-        print(f"❌ An error occurred during RAG summarization or topic extraction: {e}")
-        
-        
-def main_func():
-    transcription = audio_transcription()
-    retriever = vector_create(transcription)
-    retrieval_chain(retriever)
-    
-if __name__ == "__main__":
-    main_func()
+                # Step 2: RAG Processing
+                summary, topic, quiz = process_transcription_with_rag(transcription, llm, embeddings)
+                
+                if summary:
+                    st.subheader("🧠 RAG-Based Analysis")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.info(f"**Main Topic:**\n\n{topic}")
+                    with col2:
+                        st.success(f"**Summary:**\n\n{summary}")
+                    
+                    st.markdown("**Generated Quiz Question:**")
+                    st.code(quiz, language=None)
+
