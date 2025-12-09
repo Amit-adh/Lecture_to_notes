@@ -1,0 +1,45 @@
+{
+  "papers_processed": 15,
+  "total_questions": 9,
+  "questions_by_paper": {
+    "6891bcc8f6766a56a03f5b0d.pdf": [],
+    "6891c20af6766a56a03f5bed.pdf": [],
+    "6891cbb5f6766a56a03f5d6b.pdf": [],
+    "6891cf39f6766a56a03f5dfb.pdf": [
+      "1 2x3y  6, y 0 Consider the region bounded by the graphs of and x  0.Find the volume of the solid formed by revolving this region about y x  2 10 3 the axisandthe line .  3xy ;(x,y)(0,0) 2 4 Discuss the continuity of f(x,y) x  y atall points of",
+      " 10 1 0 ;(x,y)(0,0) f (x,y). thedomainof x y z u  f (r,s,t) r  , s  ,t  If and ,thenfind y z x 10 2 u u u x  y  z . x y z"
+    ],
+    "6891cffcf6766a56a03f5e19.pdf": [],
+    "BCSE202L_Data_Structures_And_Algorithms_CAT-2_A2_2022-2023_Winter_Semester.pdf": [],
+    "BCSE202L_Data_Structures_And_Algorithms_FAT_A2_2023-2024_Summer_Semester.pdf": [],
+    "BESP101L_Spanish_I_CAT-1_A2_2024-2025_Winter_Semester.pdf": [
+      "No the accordingto articles (el, la, los, las) definite blankswithcorrect Fillthe nouns: offollowing genderandnumber agua ii. mano ventanas iii. 10 1 1 pizarra iv. problemas chicas vi. vii. mapa viii. tema fotos moto X. the conjugationsof the correct blankswith and fillinthe Choose verbs Ser or Tener: 48 años. a.Yo profesora. b.Mi madre estudiantes. c.Nosotros 2 2 hambre?",
+      "a) i.sesentayseis -tres = ii.cuarentaycuatro- dieciocho = 5 ii.quince +diecisiete = iy, yeinticinco +veintisiete = v.treinta yseis +treinta ytres = SCHO0L OF SOCIAL SCIENCES AND LANGUAGES CONTINUOUS ASSESSMENT TEST-| SLOT: A2 WINTERSEMESTER 2024-2025 b)Write the following the words/phrases in Spanish: i. good morning. ii. Nice to meet you. 1 1 ii.Wednesday iv.July v. Novenmber a)Answerthe following questions in Spanish with completesentences. i. ¿Cómo te llamas?"
+    ],
+    "BESP101L_Spanish_I_CAT-2_A2_2024-2025_Fall_Semester.pdf": [],
+    "BGER101L_German_I_FAT_C1_2024-2025_Winter_Semester.pdf": [],
+    "BGER101L_German_I_FAT_C2_2024-2025_Fall_Semester.pdf": [],
+    "BMAT101L_Calculus_CAT-1_B1_2023-2024_Fall_Semester.pdf": [],
+    "BMAT101L_Calculus_CAT-1_G1_2023-2024_Fall_Semester.pdf": [
+      "1 2x3y  6, y 0 Consider the region bounded by the graphs of and x  0.Find the volume of the solid formed by revolving this region about y x  2 10 3 the axisandthe line .  3xy ;(x,y)(0,0) 2 4 Discuss the continuity of f(x,y) x  y atall points of",
+      " 10 1 0 ;(x,y)(0,0) f (x,y). thedomainof x y z u  f (r,s,t) r  , s  ,t  If and ,thenfind y z x 10 2 u u u x  y  z . x y z"
+    ],
+    "BMAT101L_Calculus_CAT-2_B1_2021-2022_Fall_Semester.pdf": [
+      "a) eaxcos 10 (i) Expand by in Taylor’s series as far as the second degreetermsabout theorigin. (ii) Investigate the maxima and minima, if any, 2 2 3 ofthe function y 4xy3x x . (5M+5M) (OR) b) 10 (i) Expand (1 x y) in Taylor’s series as far as the second degree terms about the point (1, 0). Easy (ii) Investigate the maxima and minima, if any, III N L3 (E) 2 2 ofthe function x y xy axy. (5M+5M) (OR) c) 10 excosy (i) Expand in Taylor’s series as far as CO2   the second degreetermsnear the point 1, .   (ii) Investigate the maxima and minima, if any, a3 b3 ofthe function xy  . x y (5M+5M) (OR) d) 1 10 2 2 (i) Expand x  xy y 3 in Taylor’s series as far as the second degree terms in powers of (x3)and (y2). (ii) Investigate the maxima and minima, if any, ofthe function xy (3x6y2). (5M+5M)",
+      "a) Find the greatest distance of the point (3, 4, 12) 10 L3 from the unit sphere whose centre is at origin, Tough III N using the Lagrange method of constrained (T) CO2 maxima and minima. (OR) b) Find the shortest distance from the point 10 L3 2 2 2 (1, 2, -1) to the sphere x  y z 24, using the Lagrange method of constrained maxima and minima. (OR) c) Using the Lagrange methodofconstrained 10 L3 maxima and minima, find the largest product of 2 2 2 the numbers x, yand z ,when x  y z 9. (OR) d) Find the shortest distance from the point 10 L3 2 2 2 (1, 2, 2) to the sphere x  y z 36, using the Lagrange method of constrained maxima and minima.",
+      "a) Compute the volume bounded bythe plane 10 L5 2 2 z0,the cylinder x  y 1 and the plane x yz 5. (OR) b) Compute the volume bounded bythe plane 10 L5 2 2 Averag z0,the cylinder x  y 4 and the plane IV N (A) x yz 5. (OR) c) Compute the volume bounded bythe plane 10 L5 2 2 z0,the cylinder x  y 16 and the plane x yz 5. CO3 (OR) d) Compute the volume bounded bythe plane 10 L5 2 2 z0,the cylinder x  y 9 and the plane x yz 5. Signaturewithdate"
+    ],
+    "BMAT101L_Calculus_CAT-2_D2_2024-2025_Fall_Semester.pdf": []
+  },
+  "combined_questions": [
+    "1 2x3y  6, y 0 Consider the region bounded by the graphs of and x  0.Find the volume of the solid formed by revolving this region about y x  2 10 3 the axisandthe line .  3xy ;(x,y)(0,0) 2 4 Discuss the continuity of f(x,y) x  y atall points of",
+    " 10 1 0 ;(x,y)(0,0) f (x,y). thedomainof x y z u  f (r,s,t) r  , s  ,t  If and ,thenfind y z x 10 2 u u u x  y  z . x y z",
+    "No the accordingto articles (el, la, los, las) definite blankswithcorrect Fillthe nouns: offollowing genderandnumber agua ii. mano ventanas iii. 10 1 1 pizarra iv. problemas chicas vi. vii. mapa viii. tema fotos moto X. the conjugationsof the correct blankswith and fillinthe Choose verbs Ser or Tener: 48 años. a.Yo profesora. b.Mi madre estudiantes. c.Nosotros 2 2 hambre?",
+    "a) i.sesentayseis -tres = ii.cuarentaycuatro- dieciocho = 5 ii.quince +diecisiete = iy, yeinticinco +veintisiete = v.treinta yseis +treinta ytres = SCHO0L OF SOCIAL SCIENCES AND LANGUAGES CONTINUOUS ASSESSMENT TEST-| SLOT: A2 WINTERSEMESTER 2024-2025 b)Write the following the words/phrases in Spanish: i. good morning. ii. Nice to meet you. 1 1 ii.Wednesday iv.July v. Novenmber a)Answerthe following questions in Spanish with completesentences. i. ¿Cómo te llamas?",
+    "a) eaxcos 10 (i) Expand by in Taylor’s series as far as the second degreetermsabout theorigin. (ii) Investigate the maxima and minima, if any, 2 2 3 ofthe function y 4xy3x x . (5M+5M) (OR) b) 10 (i) Expand (1 x y) in Taylor’s series as far as the second degree terms about the point (1, 0). Easy (ii) Investigate the maxima and minima, if any, III N L3 (E) 2 2 ofthe function x y xy axy. (5M+5M) (OR) c) 10 excosy (i) Expand in Taylor’s series as far as CO2   the second degreetermsnear the point 1, .   (ii) Investigate the maxima and minima, if any, a3 b3 ofthe function xy  . x y (5M+5M) (OR) d) 1 10 2 2 (i) Expand x  xy y 3 in Taylor’s series as far as the second degree terms in powers of (x3)and (y2). (ii) Investigate the maxima and minima, if any, ofthe function xy (3x6y2). (5M+5M)",
+    "a) Find the greatest distance of the point (3, 4, 12) 10 L3 from the unit sphere whose centre is at origin, Tough III N using the Lagrange method of constrained (T) CO2 maxima and minima. (OR) b) Find the shortest distance from the point 10 L3 2 2 2 (1, 2, -1) to the sphere x  y z 24, using the Lagrange method of constrained maxima and minima. (OR) c) Using the Lagrange methodofconstrained 10 L3 maxima and minima, find the largest product of 2 2 2 the numbers x, yand z ,when x  y z 9. (OR) d) Find the shortest distance from the point 10 L3 2 2 2 (1, 2, 2) to the sphere x  y z 36, using the Lagrange method of constrained maxima and minima.",
+    "a) Compute the volume bounded bythe plane 10 L5 2 2 z0,the cylinder x  y 1 and the plane x yz 5. (OR) b) Compute the volume bounded bythe plane 10 L5 2 2 Averag z0,the cylinder x  y 4 and the plane IV N (A) x yz 5. (OR) c) Compute the volume bounded bythe plane 10 L5 2 2 z0,the cylinder x  y 16 and the plane x yz 5. CO3 (OR) d) Compute the volume bounded bythe plane 10 L5 2 2 z0,the cylinder x  y 9 and the plane x yz 5. Signaturewithdate"
+  ],
+  "failed_papers": [],
+  "unique_questions": 7
+}

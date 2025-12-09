@@ -1,0 +1,41 @@
+{
+  "metadata": {
+    "source_pdf": "6891cf39f6766a56a03f5dfb.pdf",
+    "source_path": "data\\raw_papers\\6891cf39f6766a56a03f5dfb.pdf",
+    "topic": "All",
+    "question_count": 5,
+    "extracted_at": "2025-11-12 22:50:11"
+  },
+  "questions": [
+    {
+      "id": 1,
+      "text": "Using the first and second derivative tests, relative extrema, concavity and the points of inflection of 3 22( )3 2x xf x x   . Fall-Semester Continuous Assessment Test Programme Name & Branch: Course Name & Code: Calculus Maximum Marks: VL2023240106111 Answer All the Questions ( 5 × 10 = 50) Question Max Marks and second derivative tests, discuss the monotonicity, relative extrema, concavity and the points of inflection of 10 emester 2023-24 Continuous Assessment Test – I Programme Name & Branch: B.Tech. Calculus (BMAT101L ) Maximum Marks: 50 Slot: G1+TG1 Max Marks CO BL 1 1",
+      "word_count": 98,
+      "question_type": "statement"
+    },
+    {
+      "id": 2,
+      "text": "State Rolle’s theorem and Verify Rolle’s theorem for the function xexfxsin)( , x0 . 10 1 2",
+      "word_count": 17,
+      "question_type": "statement"
+    },
+    {
+      "id": 3,
+      "text": "Consider the region bounded by the graphs of 0,632  yyx and .0xFind the volume of the solid formed by revolving this region about the y axis and the line 2x. 10 1 3",
+      "word_count": 34,
+      "question_type": "statement"
+    },
+    {
+      "id": 4,
+      "text": "Discuss the continuity of2 2 43;( , ) (0,0)( , ) 0 ;( , ) (0,0)xyx yf x y x y x y    at all points of the domain of ).,(yxf 10 2 1",
+      "word_count": 37,
+      "question_type": "statement"
+    },
+    {
+      "id": 5,
+      "text": "If ),,(tsrfu and xztzysyxr  ,, , then find .zuzyuyxux 10 2 2",
+      "word_count": 13,
+      "question_type": "statement"
+    }
+  ]
+}

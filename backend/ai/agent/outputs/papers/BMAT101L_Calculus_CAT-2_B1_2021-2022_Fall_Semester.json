@@ -1,0 +1,29 @@
+{
+  "metadata": {
+    "file": "BMAT101L_Calculus_CAT-2_B1_2021-2022_Fall_Semester.pdf",
+    "topic": "",
+    "extracted_at": "2025-11-12 22:20:03"
+  },
+  "questions": [
+    "Page 1 of 2 Question Format & QP Setter Information Name of Examination Continuous Assessment Test – II (Dec. 2021) Slot: B1+TB 1 Course Mode: CBL Class Number (s): VL202122 0106144 Course Code: BMAT101 L Course Title: Calculus",
+    "No.: 13281 Faculty Name: R.Tamizharasi School: SAS Contact No. : 9488562270 Email: tamizharasi.r@vit.ac.in General Instructions (if any): 1. OPEN BOOK Examinations , 2. ….",
+    "No. Sub- divisio n Question Text Marks Unit / Modul e No. HOTS? (Y/N) Difficulty Level E/A/T CO Answer all q uestions Total Marks : 30?",
+    "a) (i) Expand by eaxcos in Taylor’s series as far as the second degree terms about the origin.",
+    "Investigate th e maxima and minima , if any, of the function 3 2 23 4 xx xy y  . (5M+5M) 10 III N Easy",
+    "Expand 21 ) 1( yx in Taylor’s series as far as the second degree t erms about the point (1, 0) .",
+    "Investigate the maxima and minima, if any, of the function axy xyyx2 2 . (5M+5M) 10 L3",
+    "c) (i) Expand y excos in Taylor’s series as far as the second degree terms near the point    4,1 .",
+    "Investigate the maxima and minima, if any, of the function yb xaxy3 3  . (5M+5M) 10 L3",
+    "d) (i) Expand 3212 2 y xy x in Taylor’s series as far as the second degree terms in powers of )3(x and )2(y .",
+    "Investigate the maxima and minima, if any, of the function )2 6 3(2y x xy . (5M+5M) 10 L3",
+    "a) Find the greatest distance of the point (3, 4, 12) from the unit sphere whose centre is at origin, using the Lagrange method of constrained maxima and minima. 10 III N Tough",
+    "CO2 L3 Page 2 of 2 (OR)",
+    "Find the shor test distance from the point (1, 2, -1) to the sphere 242 2 2 zyx , using the Lagrange method of constrained maxima and minima. 10 L3",
+    "c) Using the Lagrange method o f constrained maxima and minima, find the largest product of the numbers yx, and z ,when 92 2 2 zyx . 10 L3",
+    "d) Find the shortest distance from the point (1, 2, 2) to the sphere 362 2 2 zyx , using the Lagrange method of constrained maxima and minima. 10 L3",
+    "a) Compute the volume bounded by the plane 0z , the cylinder 12 2y x and the plane 5 zyx . 10 IV N Averag e (A) CO3 L5",
+    "b) Compute the volume bounded by the plane 0z , the cylinder 42 2y x and the plane 5 zyx . 10 L5",
+    "c) Compute the volume bounded by the plane 0z , the cylinder 162 2y x and the plane 5 zyx . 10 L5",
+    "d) Compute the volume bounded by the plane 0z , the cylinder 92 2y x and the plane 5 zyx . 10 L5 Signature with date"
+  ]
+}

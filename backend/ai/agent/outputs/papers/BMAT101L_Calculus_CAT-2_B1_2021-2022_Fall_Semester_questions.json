@@ -1,0 +1,29 @@
+{
+  "metadata": {
+    "source_pdf": "BMAT101L_Calculus_CAT-2_B1_2021-2022_Fall_Semester.pdf",
+    "source_path": "data\\raw_papers\\BMAT101L_Calculus_CAT-2_B1_2021-2022_Fall_Semester.pdf",
+    "topic": "All",
+    "question_count": 3,
+    "extracted_at": "2025-11-12 22:50:11"
+  },
+  "questions": [
+    {
+      "id": 1,
+      "text": "a) (i) Expand by eaxcos in Taylor’s series as far as the second degree terms about the origin. (ii) Investigate th e maxima and minima , if any, of the function 3 2 23 4 xx xy y  . (5M+5M) 10 III N Easy (E) CO2 L3 (OR) b) (i) Expand 21 ) 1( yx in Taylor’s series as far as the second degree t erms about the point (1, 0) . (ii) Investigate the maxima and minima, if any, of the function axy xyyx2 2 . (5M+5M) 10 L3 (OR) c) (i) Expand y excos in Taylor’s series as far as the second degree terms near the point    4,1 . (ii) Investigate the maxima and minima, if any, of the function yb xaxy3 3  . (5M+5M) 10 L3 (OR) d) (i) Expand 3212 2 y xy x in Taylor’s series as far as the second degree terms in powers of )3(x and )2(y . (ii) Investigate the maxima and minima, if any, of the function )2 6 3(2y x xy . (5M+5M) 10 L3",
+      "word_count": 180,
+      "question_type": "statement"
+    },
+    {
+      "id": 2,
+      "text": "a) Find the greatest distance of the point (3, 4, 12) from the unit sphere whose centre is at origin, using the Lagrange method of constrained maxima and minima. 10 III N Tough (T) CO2 L3 Page 2 of 2 (OR) b) Find the shor test distance from the point (1, 2, -1) to the sphere 242 2 2 zyx , using the Lagrange method of constrained maxima and minima. 10 L3 (OR) c) Using the Lagrange method o f constrained maxima and minima, find the largest product of the numbers yx, and z ,when 92 2 2 zyx . 10 L3 (OR) d) Find the shortest distance from the point (1, 2, 2) to the sphere 362 2 2 zyx , using the Lagrange method of constrained maxima and minima. 10 L3",
+      "word_count": 133,
+      "question_type": "statement"
+    },
+    {
+      "id": 3,
+      "text": "a) Compute the volume bounded by the plane 0z , the cylinder 12 2y x and the plane 5 zyx . 10 IV N Averag e (A) CO3 L5 (OR) b) Compute the volume bounded by the plane 0z , the cylinder 42 2y x and the plane 5 zyx . 10 L5 (OR) c) Compute the volume bounded by the plane 0z , the cylinder 162 2y x and the plane 5 zyx . 10 L5 (OR) d) Compute the volume bounded by the plane 0z , the cylinder 92 2y x and the plane 5 zyx . 10 L5 Signature with date",
+      "word_count": 104,
+      "question_type": "statement"
+    }
+  ]
+}
