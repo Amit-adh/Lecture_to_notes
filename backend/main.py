@@ -2,6 +2,7 @@
 import os
 import uuid
 from pathlib import Path
+import re
 
 # --- for max file sizes ---
 MAX_FILE_MB = 100
@@ -364,30 +365,30 @@ def create_rag_chain(llm: Ollama, embeddings: OllamaEmbeddings):
         )
 
         prompt_template = """
-You are a helpful study assistant answering a student's question strictly from the uploaded materials (PDFs, transcripts, or other text).
+            You are a helpful study assistant answering a student's question strictly from the uploaded materials (PDFs, transcripts, or other text).
 
-RULES:
-1. Use ONLY the information available in the provided context. If the necessary information is missing, say: 
-    "This is not covered in the document."
-2. Keep language simple and suitable for a first-year student unless the user explicitly asks for advanced detail.
-3. Explain clearly. Use bullet points or short paragraphs when it improves readability.
-4. If the question asks for a definition:
-   - Give a one-line definition.
-   - Then give 3-6 bullet points of explanation.
-5. If the question asks for a comparison (e.g., X vs Y):
-   - Prefer a short markdown table, then a few bullet points.
-6. Do NOT repeat large irrelevant sections from the context.
-7. Do NOT hallucinate dates, numbers, or features that are not present in the context.
-8. If diagrams/figures are referenced but not visible in text, mention: "Diagram referenced; details not available in the text."
+            RULES:
+            1. Use ONLY the information available in the provided context. If the necessary information is missing, say: 
+                "This is not covered in the document."
+            2. Keep language simple and suitable for a first-year student unless the user explicitly asks for advanced detail.
+            3. Explain clearly. Use bullet points or short paragraphs when it improves readability.
+            4. If the question asks for a definition:
+            - Give a one-line definition.
+            - Then give 3-6 bullet points of explanation.
+            5. If the question asks for a comparison (e.g., X vs Y):
+            - Prefer a short markdown table, then a few bullet points.
+            6. Do NOT repeat large irrelevant sections from the context.
+            7. Do NOT hallucinate dates, numbers, or features that are not present in the context.
+            8. If diagrams/figures are referenced but not visible in text, mention: "Diagram referenced; details not available in the text."
 
-Question:
-{question}
+            Question:
+            {question}
 
-Context:
-{context}
+            Context:
+            {context}
 
-Answer:
-"""
+            Answer:
+        """
 
         prompt = ChatPromptTemplate.from_template(prompt_template)
 
@@ -422,14 +423,65 @@ def build_stratified_context(full_text: str, max_chars: int) -> str:
     return start + "\n\n" + mid + "\n\n" + end
 
 
+def normalize_bullets(text: str) -> str:
+    """
+    Enforce clean markdown bullets:
+    - Replace common bullet glyphs with '- '.
+    - Ensure each '- ' starts on its own line.
+    - Strip 'Subpoint N:' labels.
+    """
+    if not text:
+        return text
+
+    # Strip "Subpoint 1:", "Subpoint 2:" etc.
+    text = re.sub(r'\bSubpoint\s*\d*\s*:\s*', '', text, flags=re.IGNORECASE)
+
+    # Replace common bullet glyphs with newline + dash (top-level for now)
+    for ch in ["•", "·", "◦", "▪"]:
+        text = text.replace(ch, "\n- ")
+
+    # Fix cases where the model did ", - " or "; - " inline
+    text = text.replace(", - ", "\n- ")
+    text = text.replace("; - ", "\n- ")
+
+    # If the model put many bullets on one line, split them
+    lines = text.splitlines()
+    fixed_lines = []
+    for ln in lines:
+        # Count "- " occurrences; if more than one and line doesn't already start with "- "
+        if ln.count("- ") > 1 and not ln.strip().startswith("- "):
+            parts = ln.split("- ")
+            for p in parts:
+                p = p.strip()
+                if p:
+                    fixed_lines.append("- " + p)
+        else:
+            fixed_lines.append(ln)
+    text = "\n".join(fixed_lines)
+
+    # Collapse multiple blank lines
+    while "\n\n\n" in text:
+        text = text.replace("\n\n\n", "\n\n")
+
+    return text.strip()
+
+
 def generate_initial_notes_if_needed():
     """
-    If the set of documents in doc_ids has changed since the last time
-    we generated notes, generate a compact initial overview:
-      1) main topics (bullet list)
-      2) short study summary (bullet list)
-    using the RAW document text (not the retriever),
-    and append it as an assistant message.
+    Generate an initial, structured overview (topic-agnostic) from uploaded documents.
+
+    Output MUST be exactly:
+    Main Topics:
+    - Topic 1
+    - Topic 2
+    ...
+
+    Topic-wise Summary:
+    - **Topic 1:** one or two sentence overview.
+      - sub-point 1 (one sentence)
+      - sub-point 2 (one sentence)
+    - **Topic 2:** one or two sentence overview.
+      - ...
     """
     if not llm:
         return
@@ -456,39 +508,79 @@ def generate_initial_notes_if_needed():
     combined_text = "\n\n".join(combined_parts)
     combined_text = build_stratified_context(combined_text, INITIAL_SUMMARY_MAX_CHARS)
 
+    # Topic-agnostic prompt that asks the model to detect important topics and subtopics automatically.
     auto_prompt = f"""
-You are extracting a high-level overview from the following course materials.
+You are an expert study assistant. From the text given in [Context Start]...[Context End],
+automatically DETECT the most important topics and produce a clean, structured study overview
+that helps a student learn the subject from scratch.
 
 [Context Start]
 {combined_text}
 [Context End]
 
-Do TWO things in this exact order:
+You MUST produce output in **two clearly separated sections**, in Markdown, with the exact headings:
 
-1) Main Topics
-- Output ONLY a bullet list of 6–12 main topics.
-- Each bullet must be a short topic title (2–6 words).
-- NO explanations.
-- NO sub-bullets.
+1) MAIN TOPICS
+2) SUMMARY OF EACH TOPIC
 
-2) Short Study Summary
-- Then write 6–10 bullet points.
-- Each bullet must be exactly one clear sentence.
-- Cover the ENTIRE material from start to end (not just one section).
-- Do NOT repeat the same idea in multiple bullets.
-- Keep it beginner-friendly.
+SECTION 1 – MAIN TOPICS
+- Print exactly this line on its own: MAIN TOPICS
+- On the lines after that, output a bullet list of the 6–12 most important, high-level topics found in the materials.
+- Each bullet:
+  - MUST start with "- " (dash + space).
+  - MUST be a short topic title of 2–6 words.
+  - MUST NOT contain explanations, examples, or long sentences.
+- One topic per bullet, one bullet per line.
 
-Do NOT add any extra sections or headings. Just:
-- Bullet list of main topics
-- Then bullet list of summary points
+SECTION 2 – SUMMARY OF EACH TOPIC
+- After the last main topic bullet, leave a blank line.
+- Then print exactly this line on its own: SUMMARY OF EACH TOPIC
+- After that heading, for each main topic (in the same order as above), output ONE bullet:
+  - The bullet MUST start with "- **Topic Name:**" followed by 2–4 full sentences.
+  - These sentences must explain the topic from scratch for a beginner:
+    - define the concept,
+    - explain its purpose or role,
+    - mention the most important sub-ideas or components mentioned in the text,
+    - and, if helpful, give a simple example.
+  - Each sentence MUST be a complete sentence in simple English, NOT just keywords or short fragments.
+- Do NOT use nested bullets, "Subpoint", numbering (1), (2), etc., or any other list style in this section.
+- There should be exactly one bullet per topic in the SUMMARY OF EACH TOPIC section.
+
+GENERAL RULES
+- Use ONLY markdown bullets starting with "- " as described.
+- Do NOT invent topics or details that are not present in the text.
+- If diagrams or images are referenced but not visible, you may mention that in a sentence (for example: "A diagram is referenced but its details are not available in the text.").
+- Keep language clear, friendly, and suitable for a first-year student.
+- Aim to make each topic's summary understandable even for someone seeing it for the first time.
+
+Your output MUST follow this structure exactly, for example:
+
+MAIN TOPICS
+- Topic A
+- Topic B
+- Topic C
+
+SUMMARY OF EACH TOPIC
+- **Topic A:** [2–4 full sentences explaining Topic A].
+- **Topic B:** [2–4 full sentences explaining Topic B].
+- **Topic C:** [2–4 full sentences explaining Topic C].
 """
 
+
+
+
     try:
-        with st.spinner("Generating initial topics and short summary from the uploaded materials..."):
-            notes = llm.invoke(auto_prompt)
+        with st.spinner("Generating main topics and topic-wise summary from the uploaded materials..."):
+            raw_notes = llm.invoke(auto_prompt)
+            notes = normalize_bullets(raw_notes)
     except Exception as e:
         st.error(f"Error while generating initial notes: {e}")
         return
+
+    # Simple sanity check / minimal reformat
+        # Simple sanity check / minimal reformat
+    if not notes.strip().upper().startswith("MAIN TOPICS"):
+        notes = "MAIN TOPICS\n- (could not extract topics cleanly)\n\nSUMMARY OF EACH TOPIC\n- (no summary generated)\n\n" + notes
 
     # Store the notes as an assistant message so they appear before user questions
     st.session_state.messages.append({
@@ -623,7 +715,7 @@ if media_file is not None and file_type.startswith("Media"):
         st.session_state.processed_file = safe_name
         st.session_state.original_name = media_file.name
 
-                # Transcribe
+        # Transcribe
         content: Optional[str] = None
         if asr_model:
             content = transcribe_media_file_fast(
