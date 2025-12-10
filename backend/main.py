@@ -400,6 +400,27 @@ Answer:
     return rag_chain
 
 
+def build_stratified_context(full_text: str, max_chars: int) -> str:
+    """
+    Take slices from the start, middle, and end of full_text so that
+    the total length is <= max_chars. This ensures the model sees
+    early, mid, and late parts of long documents instead of only the beginning.
+    """
+    if len(full_text) <= max_chars:
+        return full_text
+
+    # Split budget into three roughly equal parts
+    part = max_chars // 3
+
+    start = full_text[:part]
+
+    mid_start = max(len(full_text) // 2 - part // 2, 0)
+    mid = full_text[mid_start:mid_start + part]
+
+    end = full_text[-part:]
+
+    return start + "\n\n" + mid + "\n\n" + end
+
 
 def generate_initial_notes_if_needed():
     """
@@ -433,8 +454,7 @@ def generate_initial_notes_if_needed():
         return
 
     combined_text = "\n\n".join(combined_parts)
-    if len(combined_text) > INITIAL_SUMMARY_MAX_CHARS:
-        combined_text = combined_text[:INITIAL_SUMMARY_MAX_CHARS]
+    combined_text = build_stratified_context(combined_text, INITIAL_SUMMARY_MAX_CHARS)
 
     auto_prompt = f"""
 You are extracting a high-level overview from the following course materials.
@@ -496,9 +516,7 @@ def stream_answer(chain, question: str):
 # Run this once per server process
 cleanup_upload_dir()
 
-# -----------------------------
-# UI State Init
-# -----------------------------
+
 # -----------------------------
 # UI State Init
 # -----------------------------
