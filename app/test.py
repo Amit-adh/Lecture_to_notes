@@ -204,15 +204,102 @@ def transcribe_media_file_fast(asr_model: WhisperModel, file_path: str, cache_ke
 
 from core.doc_utils import (
     clamp_content,
-    get_vectorstore,
-    add_content_to_vectorstore,
-    create_rag_chain,
+    get_vectorstore_pure,
+    add_content_to_vectorstore_pure,
+    create_rag_chain_pure,
     build_stratified_context,
     normalize_bullets,
-    generate_initial_notes_if_needed,
+    generate_initial_notes_from_text,
     stream_answer,
+    auto_prompt_template,
 )
 
+
+# from core.doc_utils_core import (
+#     clamp_content,
+#     get_vectorstore_pure,
+#     add_content_to_vectorstore_pure,
+#     create_rag_chain_pure,
+#     build_stratified_context,
+#     normalize_bullets,
+# )
+
+# cached resource for vectorstore (Streamlit)
+@st.cache_resource
+def get_vectorstore_cached(embeddings, session_id):
+    return get_vectorstore_pure(embeddings, session_id, CHROMA_DIR)
+
+# When adding content (use split_text_cached from UI)
+def add_content_to_vectorstore(
+    content: str,
+    embeddings,
+    doc_id: str,
+    source_name: str,
+    split_fn,  # pass split_text_cached from main.py
+):
+    content = clamp_content(content)
+    vs = get_vectorstore_cached(embeddings, st.session_state.session_id)
+    # Wrap with spinner and error UI
+    with st.spinner("Indexing document into vectorstore..."):
+        add_content_to_vectorstore_pure(
+            content=content,
+            embeddings=embeddings,
+            doc_id=doc_id,
+            source_name=source_name,
+            vs=vs,
+            split_fn=split_fn,
+            chroma_dir=CHROMA_DIR,
+        )
+
+# Adapter to create rag_chain (returns chain to use in streaming)
+def create_rag_chain(llm, embeddings):
+    vs = get_vectorstore_cached(embeddings, st.session_state.session_id)
+    with st.spinner("Building retriever and RAG chain from the uploaded materials..."):
+        retriever = vs.as_retriever(
+            search_type="mmr",
+            search_kwargs={"k": 20, "fetch_k": 120, "lambda_mult": 0.25},
+        )
+        return create_rag_chain_pure(retriever, llm)
+
+
+def generate_initial_notes_if_needed(retriever_k=50, fetch_k=200, max_chars=INITIAL_SUMMARY_MAX_CHARS):
+    if not llm or not embeddings:
+        return
+    if not st.session_state.get("doc_ids"):
+        return
+
+    # detect doc set changed
+    current_state = frozenset(st.session_state.doc_ids)
+    if current_state == st.session_state.get("last_notes_doc_state"):
+        return
+
+    vs = get_vectorstore_cached(embeddings, st.session_state.session_id)
+    retriever = vs.as_retriever(search_type="mmr", search_kwargs={"k": retriever_k, "fetch_k": fetch_k, "lambda_mult": 0.25})
+
+    # retrieve representative docs (use retriever or fallback)
+    try:
+        if hasattr(retriever, "get_relevant_documents"):
+            docs = retriever.get_relevant_documents("")
+        else:
+            docs = vs.similarity_search("", k=retriever_k)
+    except Exception:
+        docs = vs.similarity_search("", k=retriever_k)
+
+    if not docs:
+        return
+
+    combined_text = "\n\n".join(getattr(d, "page_content", str(d)) for d in docs)
+    combined_text = build_stratified_context(combined_text, max_chars)
+
+    # call LLM to produce notes 
+    with st.spinner("Generating main topics and topic-wise summary from the uploaded materials..."):
+        raw_notes = llm.invoke(auto_prompt_template.format(combined_text=combined_text))
+        notes = normalize_bullets(raw_notes)
+    if not notes.strip().upper().startswith("MAIN TOPICS"):
+        notes = "MAIN TOPICS\n- (could not extract topics cleanly)\n\nSUMMARY OF EACH TOPIC\n- (no summary generated)\n\n" + notes
+
+    st.session_state.messages.append({"role": "assistant", "content": notes})
+    st.session_state.last_notes_doc_state = current_state
 
 
 # Run this once per server process
@@ -236,6 +323,8 @@ if "last_notes_doc_state" not in st.session_state:
     st.session_state.last_notes_doc_state = None  # to track when notes were last generated
 if "raw_docs" not in st.session_state:
     st.session_state.raw_docs = {}  # doc_id -> full raw text
+if "session_id" not in st.session_state:
+    st.session_state.session_id = uuid.uuid4().hex
 
 
 
@@ -418,6 +507,7 @@ if pdf_files and file_type.startswith("Document"):
                     embeddings=embeddings,
                     doc_id=file_id,
                     source_name=uploaded_file.name,
+                    split_fn=split_text_cached
                 )
                 st.session_state.doc_ids.add(file_id)
                 any_new_docs = True

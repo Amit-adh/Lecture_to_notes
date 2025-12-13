@@ -28,99 +28,8 @@ CHROMA_DIR = os.environ.get("CHROMA_DIR", "chroma_db")
 MAX_DOC_CHARS = int(os.environ.get("MAX_DOC_CHARS", "200000"))
 INITIAL_SUMMARY_MAX_CHARS = int(os.environ.get("INITIAL_SUMMARY_MAX_CHARS", "16000"))
 
-# ---- helpers (cleanup_upload_dir referenced at bottom) ----
-def clamp_content(content: str) -> str:
-    """
-    Limit document length to avoid huge memory / embedding time.
-    (Behavior preserved exactly from main.py)
-    """
-    if len(content) > MAX_DOC_CHARS:
-        st.warning(f"Document too large, truncating to first {MAX_DOC_CHARS} characters for speed.")
-        return content[:MAX_DOC_CHARS]
-    return content
 
-
-# session_id: keep same generation logic as before, but store/read in st.session_state
-session_id = st.session_state.get("session_id")
-if not session_id:
-    session_id = uuid.uuid4().hex
-    st.session_state.session_id = session_id
-
-
-@st.cache_resource
-def get_vectorstore(embeddings):
-    """
-    Shared Chroma vectorstore for the whole session / app.
-    All PDFs (and optionally transcripts) go into this single collection.
-    """
-    vs = Chroma(
-        collection_name=f"session_docs_{session_id}",
-        embedding_function=embeddings,
-        persist_directory=CHROMA_DIR,
-    )
-    return vs
-
-
-def add_content_to_vectorstore(
-    content: str,
-    embeddings: OllamaEmbeddings,
-    doc_id: str,
-    source_name: str,
-    split_fn=None,
-):
-    """
-    Add a single document's content into the shared vectorstore.
-    - content: raw text (already loaded from PDF or transcript)
-    - doc_id: stable id for this document (e.g. SHA-256 hash)
-    - source_name: original filename (for metadata/debug)
-    """
-    if not content:
-        return
-
-    content = clamp_content(content)
-    # split_text_cached is expected to be available in your environment; if you moved it,
-    # import it into main.py and keep calling add_content_to_vectorstore exactly the same way.
-    if split_fn is None:
-        # import from core module to avoid importing the app
-        from core.pdf_utils import chunk_text_to_docs as split_fn
-
-    chunks = split_fn(content)
-
-    # Attach metadata directly to each chunk Document
-    for i, d in enumerate(chunks):
-        base_meta = dict(d.metadata) if d.metadata else {}
-        base_meta.update({"doc_id": doc_id, "source": source_name, "chunk_id": i})
-        d.metadata = base_meta
-
-    vs = get_vectorstore(embeddings)
-
-    # Do NOT pass metadatas kwarg to avoid the multiple-values error
-    
-    lock = FileLock(os.path.join(CHROMA_DIR, "chroma.persist.lock"))
-    with lock:
-        vs.add_documents(
-            chunks,
-            ids=[f"{doc_id}_{i}" for i in range(len(chunks))],
-        )
-        vs.persist()
-
-
-def create_rag_chain(llm: Any, embeddings: OllamaEmbeddings):
-    """
-    Create a RAG chain over *all* documents currently stored
-    in the shared vectorstore.
-    Call this after you've added at least one document via add_content_to_vectorstore.
-    """
-    vs = get_vectorstore(embeddings)
-
-    with st.spinner("Building retriever and RAG chain from the uploaded materials..."):
-        retriever = vs.as_retriever(
-            search_type="mmr",
-            # pull more chunks so answers can see more of the document
-            search_kwargs={"k": 20, "fetch_k": 120, "lambda_mult": 0.25},
-        )
-
-        prompt_template = """
+prompt_template = """
             You are a helpful study assistant answering a student's question strictly from the uploaded materials (PDFs, transcripts, or other text).
 
             RULES:
@@ -146,14 +55,147 @@ def create_rag_chain(llm: Any, embeddings: OllamaEmbeddings):
             Answer:
         """
 
-        prompt = ChatPromptTemplate.from_template(prompt_template)
 
-        rag_chain = (
-            {"context": retriever, "question": RunnablePassthrough()}
-            | prompt
-            | llm
-            | StrOutputParser()
+auto_prompt_template = """
+You are an expert study assistant. From the text given in [Context Start]...[Context End],
+automatically DETECT the most important topics and produce a clean, structured study overview
+that helps a student learn the subject from scratch.
+
+[Context Start]
+{combined_text}
+[Context End]
+
+You MUST produce output in **two clearly separated sections**, in Markdown, with the exact headings:
+
+1) MAIN TOPICS
+2) SUMMARY OF EACH TOPIC
+
+SECTION 1 – MAIN TOPICS
+- Print exactly this line on its own: MAIN TOPICS
+- On the lines after that, output a bullet list of the 6–12 most important, high-level topics found in the materials.
+- Each bullet:
+  - MUST start with "- " (dash + space).
+  - MUST be a short topic title of 2–6 words.
+  - MUST NOT contain explanations, examples, or long sentences.
+- One topic per bullet, one bullet per line.
+
+SECTION 2 – SUMMARY OF EACH TOPIC
+- After the last main topic bullet, leave a blank line.
+- Then print exactly this line on its own: SUMMARY OF EACH TOPIC
+- After that heading, for each main topic (in the same order as above), output ONE bullet:
+  - The bullet MUST start with "- **Topic Name:**" followed by 2–4 full sentences.
+  - These sentences must explain the topic from scratch for a beginner:
+    - define the concept,
+    - explain its purpose or role,
+    - mention the most important sub-ideas or components mentioned in the text,
+    - and, if helpful, give a simple example.
+  - Each sentence MUST be a complete sentence in simple English, NOT just keywords or short fragments.
+- Do NOT use nested bullets, "Subpoint", numbering (1), (2), etc., or any other list style in this section.
+- There should be exactly one bullet per topic in the SUMMARY OF EACH TOPIC section.
+
+GENERAL RULES
+- Use ONLY markdown bullets starting with "- " as described.
+- Do NOT invent topics or details that are not present in the text.
+- If diagrams or images are referenced but not visible, you may mention that in a sentence (for example: "A diagram is referenced but its details are not available in the text.").
+- Keep language clear, friendly, and suitable for a first-year student.
+- Aim to make each topic's summary understandable even for someone seeing it for the first time.
+
+Your output MUST follow this structure exactly, for example:
+
+MAIN TOPICS
+- Topic A
+- Topic B
+- Topic C
+
+SUMMARY OF EACH TOPIC
+- **Topic A:** [2–4 full sentences explaining Topic A].
+- **Topic B:** [2–4 full sentences explaining Topic B].
+- **Topic C:** [2–4 full sentences explaining Topic C].
+"""
+
+
+# ---- helpers (cleanup_upload_dir referenced at bottom) ----
+def clamp_content(content: str) -> str:
+    """
+    Limit document length to avoid huge memory / embedding time.
+    (Behavior preserved exactly from main.py)
+    """
+    if len(content) > MAX_DOC_CHARS:
+        st.warning(f"Document too large, truncating to first {MAX_DOC_CHARS} characters for speed.")
+        return content[:MAX_DOC_CHARS]
+    return content
+
+
+# session_id: keep same generation logic as before, but store/read in st.session_state
+session_id = st.session_state.get("session_id")
+if not session_id:
+    session_id = uuid.uuid4().hex
+    st.session_state.session_id = session_id
+
+
+def get_vectorstore_pure(embeddings: OllamaEmbeddings, session_id: str, chroma_dir: str):
+    """
+    Return a Chroma vectorstore instance for the given session_id and directory.
+    Pure: no caching, no Streamlit.
+    """
+    vs = Chroma(
+        collection_name=f"session_docs_{session_id}",
+        embedding_function=embeddings,
+        persist_directory=chroma_dir,
+    )
+    return vs
+
+
+def add_content_to_vectorstore_pure(
+    content: str,
+    embeddings: OllamaEmbeddings,
+    doc_id: str,
+    source_name: str,
+    vs: Chroma,
+    split_fn,
+    chroma_dir: str,
+):
+    """
+    Add a single document's content into the shared vectorstore.
+    - content: raw text (already loaded from PDF or transcript)
+    - doc_id: stable id for this document (e.g. SHA-256 hash)
+    - source_name: original filename (for metadata/debug)
+    """
+    if not content:
+        return
+
+    chunks = split_fn(content)
+
+    for i, d in enumerate(chunks):
+        base_meta = dict(d.metadata) if d.metadata else {}
+        base_meta.update({"doc_id": doc_id, "source": source_name, "chunk_id": i})
+        d.metadata = base_meta
+
+    lock_path = os.path.join(chroma_dir, "chroma.persist.lock")
+    lock = FileLock(lock_path)
+    with lock:
+        vs.add_documents(
+            chunks,
+            ids=[f"{doc_id}_{i}" for i in range(len(chunks))],
         )
+        vs.persist()
+        
+
+def create_rag_chain_pure(retriever: Any, llm: Any, prompt: Optional[ChatPromptTemplate] = None):
+    """
+    Create a RAG chain over *all* documents currently stored
+    in the shared vectorstore.
+    Call this after you've added at least one document via add_content_to_vectorstore.
+    """
+       
+    prompt = ChatPromptTemplate.from_template(prompt_template)
+
+    rag_chain = (
+        {"context": retriever, "question": RunnablePassthrough()}
+        | prompt
+        | llm
+        | StrOutputParser()
+    )
     return rag_chain
 
 
@@ -222,117 +264,35 @@ def normalize_bullets(text: str) -> str:
     return text.strip()
 
 
-def generate_initial_notes_if_needed():
+# core/doc_utils.py
+
+def generate_initial_notes_from_text(
+    combined_text: str,
+    llm,
+    max_chars: int = INITIAL_SUMMARY_MAX_CHARS,
+) -> str:
+    
     """
-    Generate an initial, structured overview (topic-agnostic) from uploaded documents.
-    Behavior is unchanged from your original main.py version.
+    Pure function: given combined document text and an LLM,
+    return the initial notes string (MAIN TOPICS + SUMMARY OF EACH TOPIC).
+    No Streamlit, no session_state, no side effects.
     """
-    # Preserve behavior: use the same llm check as in main.py, but read llm from session_state
-    llm = st.session_state.get("llm")
-    if not llm:
-        return
-    if not st.session_state.get("doc_ids"):
-        return
+    # reuse your existing helper
+    combined_text = build_stratified_context(combined_text, max_chars)
 
-    current_state = frozenset(st.session_state.doc_ids)
-    prev_state = st.session_state.get("last_notes_doc_state")
+    raw_notes = llm.invoke(auto_prompt_template.format(combined_text=combined_text))
+    notes = normalize_bullets(raw_notes)
 
-    # Only generate notes if the underlying document set has changed
-    if current_state == prev_state:
-        return
-
-    # Build combined raw text from all docs we currently know about
-    combined_parts = []
-    for doc_id in st.session_state.doc_ids:
-        txt = st.session_state.raw_docs.get(doc_id)
-        if txt:
-            combined_parts.append(txt)
-
-    if not combined_parts:
-        return
-
-    combined_text = "\n\n".join(combined_parts)
-    combined_text = build_stratified_context(combined_text, INITIAL_SUMMARY_MAX_CHARS)
-
-    # Topic-agnostic prompt (kept exactly as in original)
-    auto_prompt = f"""
-You are an expert study assistant. From the text given in [Context Start]...[Context End],
-automatically DETECT the most important topics and produce a clean, structured study overview
-that helps a student learn the subject from scratch.
-
-[Context Start]
-{combined_text}
-[Context End]
-
-You MUST produce output in **two clearly separated sections**, in Markdown, with the exact headings:
-
-1) MAIN TOPICS
-2) SUMMARY OF EACH TOPIC
-
-SECTION 1 – MAIN TOPICS
-- Print exactly this line on its own: MAIN TOPICS
-- On the lines after that, output a bullet list of the 6–12 most important, high-level topics found in the materials.
-- Each bullet:
-  - MUST start with "- " (dash + space).
-  - MUST be a short topic title of 2–6 words.
-  - MUST NOT contain explanations, examples, or long sentences.
-- One topic per bullet, one bullet per line.
-
-SECTION 2 – SUMMARY OF EACH TOPIC
-- After the last main topic bullet, leave a blank line.
-- Then print exactly this line on its own: SUMMARY OF EACH TOPIC
-- After that heading, for each main topic (in the same order as above), output ONE bullet:
-  - The bullet MUST start with "- **Topic Name:**" followed by 2–4 full sentences.
-  - These sentences must explain the topic from scratch for a beginner:
-    - define the concept,
-    - explain its purpose or role,
-    - mention the most important sub-ideas or components mentioned in the text,
-    - and, if helpful, give a simple example.
-  - Each sentence MUST be a complete sentence in simple English, NOT just keywords or short fragments.
-- Do NOT use nested bullets, "Subpoint", numbering (1), (2), etc., or any other list style in this section.
-- There should be exactly one bullet per topic in the SUMMARY OF EACH TOPIC section.
-
-GENERAL RULES
-- Use ONLY markdown bullets starting with "- " as described.
-- Do NOT invent topics or details that are not present in the text.
-- If diagrams or images are referenced but not visible, you may mention that in a sentence (for example: "A diagram is referenced but its details are not available in the text.").
-- Keep language clear, friendly, and suitable for a first-year student.
-- Aim to make each topic's summary understandable even for someone seeing it for the first time.
-
-Your output MUST follow this structure exactly, for example:
-
-MAIN TOPICS
-- Topic A
-- Topic B
-- Topic C
-
-SUMMARY OF EACH TOPIC
-- **Topic A:** [2–4 full sentences explaining Topic A].
-- **Topic B:** [2–4 full sentences explaining Topic B].
-- **Topic C:** [2–4 full sentences explaining Topic C].
-"""
-
-    try:
-        with st.spinner("Generating main topics and topic-wise summary from the uploaded materials..."):
-            # read llm from session_state (same as original semantics)
-            raw_notes = llm.invoke(auto_prompt)
-            notes = normalize_bullets(raw_notes)
-    except Exception as e:
-        st.error(f"Error while generating initial notes: {e}")
-        return
-
-    # Simple sanity check / minimal reformat
+    # same sanity check as before
     if not notes.strip().upper().startswith("MAIN TOPICS"):
-        notes = "MAIN TOPICS\n- (could not extract topics cleanly)\n\nSUMMARY OF EACH TOPIC\n- (no summary generated)\n\n" + notes
+        notes = (
+            "MAIN TOPICS\n- (could not extract topics cleanly)\n\n"
+            "SUMMARY OF EACH TOPIC\n- (no summary generated)\n\n"
+            + notes
+        )
 
-    # Store the notes as an assistant message so they appear before user questions
-    st.session_state.messages.append({
-        "role": "assistant",
-        "content": notes,
-    })
+    return notes
 
-    # Remember that we've generated notes for this exact document set
-    st.session_state.last_notes_doc_state = current_state
 
 
 def stream_answer(chain, question: str):
