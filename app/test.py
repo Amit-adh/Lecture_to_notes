@@ -36,7 +36,7 @@ from transformers import logging as hf_logging  # quiet HF logs (not used for AS
 # -----------------------------
 # Global Configuration
 # -----------------------------
-st.set_page_config(page_title="AI Document & Media Q&A (Fast)", layout="wide")
+st.set_page_config(page_title="AI Document & Media Q&A", layout="wide")
 
 # ASR model sizing (adjust for your machine)
 ASR_MODEL_SIZE = os.environ.get("ASR_MODEL_SIZE", "small")  # "distil-medium.en" | "base" | "small" | "medium"
