@@ -1,35 +1,36 @@
 # main.py
 import os
 import uuid
-import re
-from pathlib import Path
+# import re
+# from pathlib import Path
 from config import *
+
+
+# for the api key
+from dotenv import load_dotenv
+load_dotenv()
+groq_api_key = os.getenv("GROQ_API_KEY")
 
 os.environ.setdefault("OMP_NUM_THREADS", str(MAX_THREADS))
 os.environ.setdefault("OPENBLAS_NUM_THREADS", str(MAX_THREADS))
 os.environ.setdefault("MKL_NUM_THREADS", str(MAX_THREADS))
 
 import streamlit as st
-import io
+# import io
 import torch
-import subprocess
+# import subprocess
 import hashlib
-from typing import Optional, List
+from typing import Optional
 
-# --- ASR (fast) ---
-from faster_whisper import WhisperModel
+from groq import Groq
+from langchain_groq import ChatGroq
+from langchain_community.embeddings import HuggingFaceEmbeddings
+
+
 
 # --- LLM / RAG ---
 from transformers import logging as hf_logging  # quiet HF logs (not used for ASR now)
-from langchain_community.vectorstores import Chroma
-from langchain_community.embeddings import OllamaEmbeddings
-from langchain_community.llms import Ollama
-# Switched to PyMuPDFLoader for speed/robustness
-from langchain_community.document_loaders import PyMuPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough
-from langchain_core.output_parsers import StrOutputParser
+# from langchain_community.vectorstores import Chroma
 
 
 # -----------------------------
@@ -48,10 +49,10 @@ os.makedirs(TRANSCRIPT_CACHE_DIR, exist_ok=True)
 os.makedirs(CHROMA_DIR, exist_ok=True)
 
 # Speed up PyTorch ops on CPU
-try:
-    torch.set_num_threads(MAX_THREADS)
-except Exception:
-    pass
+# try:
+#     torch.set_num_threads(MAX_THREADS)
+# except Exception:
+#     pass
 
 # Quiet down HF warnings
 hf_logging.set_verbosity_error()
@@ -64,65 +65,55 @@ hf_logging.set_verbosity_error()
 from core.file_utils import (
     cleanup_upload_dir,
     save_uploaded_file,
-    file_hash,
+    # file_hash,
     cached_transcript_path,
-    normalized_wav_cache_path,
-    ffmpeg_to_wav16k_mono,
+    # normalized_wav_cache_path,
+    # ffmpeg_to_wav16k_mono,
     normalize_to_wav16k,
 )
 
 # -----------------------------
 # Cached Resources
 # -----------------------------
+
+
+# --- needs slight change ---
 @st.cache_resource
-def load_asr_model():
-    st.write("⏳ Cache miss: loading faster-whisper...")
-    model = WhisperModel(
-        ASR_MODEL_SIZE,
-        device=ASR_DEVICE,
-        compute_type=ASR_COMPUTE,
-    )
-    st.write(f"✅ faster-whisper loaded ({ASR_MODEL_SIZE}, {ASR_DEVICE}/{ASR_COMPUTE})")
-    return model
+def load_groq_client():
+    # return Groq(api_key=st.secrets["GROQ_API_KEY"])
+    return Groq(api_key=groq_api_key)
 
 
 @st.cache_resource
-def load_ollama_llm():
-    st.write(f"⏳ Cache miss: initializing Ollama LLM '{OLLAMA_LLM_MODEL}'...")
+def load_groq_llm():
+    st.write("⏳ Cache miss: initializing Groq LLM...")
     try:
-        # >>> use global OLLAMA_NUM_PREDICT as the default limit
-        num_predict = OLLAMA_NUM_PREDICT
-
-        llm = Ollama(
-            base_url=OLLAMA_BASE_URL,
-            model=OLLAMA_LLM_MODEL,
+        llm = ChatGroq(
+            model="llama-3.1-8b-instant",
             temperature=0.2,
-            num_ctx=4096, #previously 2048
-            num_predict=num_predict,
+            # groq_api_key=st.secrets["GROQ_API_KEY"],
+            groq_api_key=groq_api_key,
         )
-        # Warmup (very small)
-        _ = llm.invoke("hello")[:1]
-        st.write(f"✅ Ollama LLM ready. (num_predict={num_predict})")
+
+        # Warmup (tiny)
+        _ = llm.invoke("hello")
+
+        st.write("✅ Groq LLM ready.")
         return llm
+
     except Exception as e:
-        st.error(f"❌ Ollama LLM init failed. Is Ollama running? Error: {e}")
+        st.error(f"❌ Groq LLM init failed. Error: {e}")
         return None
 
 
 @st.cache_resource
-def load_ollama_embeddings():
-    st.write(f"⏳ Cache miss: initializing Ollama embeddings '{OLLAMA_EMBEDDING_MODEL}'...")
-    try:
-        embeddings = OllamaEmbeddings(
-            base_url=OLLAMA_BASE_URL,
-            model=OLLAMA_EMBEDDING_MODEL,
-        )
-        st.write("✅ Ollama embeddings ready.")
-        return embeddings
-    except Exception as e:
-        st.error(f"❌ Ollama embeddings init failed. Is Ollama running? Error: {e}")
-        return None
-
+def load_embeddings():
+    st.write("⏳ Cache miss: loading HF embeddings...")
+    embeddings = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2"
+    )
+    st.write("✅ HF embeddings ready.")
+    return embeddings
 
 # -----------------------------
 # Cached Data Helpers
@@ -147,12 +138,18 @@ def load_pdf_text_cached(file_path: str) -> Optional[str]:
 # -----------------------------
 # Core Processing
 # -----------------------------
-def transcribe_media_file_fast(asr_model: WhisperModel, file_path: str, cache_key: str, lang: Optional[str]) -> Optional[str]:
+def transcribe_media_file(
+    client, 
+    file_path: str, 
+    cache_key: str, 
+    lang: Optional[str]
+) -> Optional[str]:
+    
+    
     """
-    Convert media → 16k mono WAV and transcribe with faster-whisper.
-    Uses VAD to skip silence. Caches transcript by file hash.
+    Transcribe media using Groq Whisper API.
+    Caches transcript by file hash.
     """
-    # cache_path = cached_transcript_path(cache_key)
     cache_path = cached_transcript_path(cache_key, TRANSCRIPT_CACHE_DIR)
 
     if os.path.exists(cache_path):
@@ -163,36 +160,28 @@ def transcribe_media_file_fast(asr_model: WhisperModel, file_path: str, cache_ke
     st.info("🎙️ Starting transcription...")
 
     try:
-        # wav_path = normalize_to_wav16k(file_path, cache_key)
         wav_path = normalize_to_wav16k(file_path, cache_key, UPLOAD_DIR)
-
     except Exception as e:
         st.error(f"Audio preprocessing failed: {e}")
         return None
-
-    # If lang is None → autodetect; else force (speeds up if known)
-    transcribe_kwargs = dict(
-        vad_filter=True,
-        vad_parameters={"min_silence_duration_ms": 400},
-        beam_size=1,
-        best_of=1,
-        temperature=0,
-        no_speech_threshold=0.6,
-        compression_ratio_threshold=2.4,
-        task="transcribe",
-    )
-    if lang and lang.lower() != "auto":
-        transcribe_kwargs["language"] = lang
-
-    with st.spinner("Transcribing (faster-whisper + VAD)..."):
+    
+   
+    final_text: Optional[str]
+    
+    with st.spinner("Transcribing audio..."):
+         # 3️⃣ Call Groq Whisper
         try:
-            segments, info = asr_model.transcribe(wav_path, **transcribe_kwargs)
+            with open(wav_path, "rb") as audio_file:
+                transcription = client.audio.transcriptions.create(
+                    file=audio_file,
+                    model="whisper-large-v3",
+                    language=lang,   # None = auto-detect
+                )
+            final_text = transcription.text.strip()
+
         except Exception as e:
             st.error(f"Transcription error: {e}")
             return None
-
-        texts: List[str] = [seg.text for seg in segments]
-        final_text = " ".join(texts).strip()
 
     with open(cache_path, "w", encoding="utf-8") as f:
         f.write(final_text)
@@ -207,27 +196,18 @@ from core.doc_utils import (
     get_vectorstore_pure,
     add_content_to_vectorstore_pure,
     create_rag_chain_pure,
-    build_stratified_context,
-    normalize_bullets,
+    # build_stratified_context,
+    # normalize_bullets,
     generate_initial_notes_from_text,
     stream_answer,
-    auto_prompt_template,
+    # auto_prompt_template,
 )
 
 
-# from core.doc_utils_core import (
-#     clamp_content,
-#     get_vectorstore_pure,
-#     add_content_to_vectorstore_pure,
-#     create_rag_chain_pure,
-#     build_stratified_context,
-#     normalize_bullets,
-# )
-
 # cached resource for vectorstore (Streamlit)
 @st.cache_resource
-def get_vectorstore_cached(embeddings, session_id):
-    return get_vectorstore_pure(embeddings, session_id, CHROMA_DIR)
+def get_vectorstore_cached(_embeddings, session_id):
+    return get_vectorstore_pure(_embeddings, session_id, CHROMA_DIR)
 
 # When adding content (use split_text_cached from UI)
 def add_content_to_vectorstore(
@@ -262,7 +242,13 @@ def create_rag_chain(llm, embeddings):
         return create_rag_chain_pure(retriever, llm)
 
 
-def generate_initial_notes_if_needed(retriever_k=50, fetch_k=200, max_chars=INITIAL_SUMMARY_MAX_CHARS):
+def generate_initial_notes_if_needed(
+    llm, 
+    embeddings,
+    retriever_k=50, 
+    fetch_k=200, 
+    max_chars=INITIAL_SUMMARY_MAX_CHARS,
+):
     if not llm or not embeddings:
         return
     if not st.session_state.get("doc_ids"):
@@ -274,14 +260,18 @@ def generate_initial_notes_if_needed(retriever_k=50, fetch_k=200, max_chars=INIT
         return
 
     vs = get_vectorstore_cached(embeddings, st.session_state.session_id)
-    retriever = vs.as_retriever(search_type="mmr", search_kwargs={"k": retriever_k, "fetch_k": fetch_k, "lambda_mult": 0.25})
+    retriever = vs.as_retriever(
+        search_type="mmr",
+        search_kwargs={
+            "k": retriever_k,
+            "fetch_k": fetch_k,
+            "lambda_mult": 0.25,
+        },
+    )
 
     # retrieve representative docs (use retriever or fallback)
     try:
-        if hasattr(retriever, "get_relevant_documents"):
-            docs = retriever.get_relevant_documents("")
-        else:
-            docs = vs.similarity_search("", k=retriever_k)
+        docs = retriever.get_relevant_documents("")
     except Exception:
         docs = vs.similarity_search("", k=retriever_k)
 
@@ -289,14 +279,15 @@ def generate_initial_notes_if_needed(retriever_k=50, fetch_k=200, max_chars=INIT
         return
 
     combined_text = "\n\n".join(getattr(d, "page_content", str(d)) for d in docs)
-    combined_text = build_stratified_context(combined_text, max_chars)
+    # combined_text = build_stratified_context(combined_text, max_chars)
 
     # call LLM to produce notes 
     with st.spinner("Generating main topics and topic-wise summary from the uploaded materials..."):
-        raw_notes = llm.invoke(auto_prompt_template.format(combined_text=combined_text))
-        notes = normalize_bullets(raw_notes)
-    if not notes.strip().upper().startswith("MAIN TOPICS"):
-        notes = "MAIN TOPICS\n- (could not extract topics cleanly)\n\nSUMMARY OF EACH TOPIC\n- (no summary generated)\n\n" + notes
+        notes = generate_initial_notes_from_text(
+            combined_text=combined_text,
+            llm=llm,
+            max_chars=max_chars,
+        )
 
     st.session_state.messages.append({"role": "assistant", "content": notes})
     st.session_state.last_notes_doc_state = current_state
@@ -334,10 +325,13 @@ if "session_id" not in st.session_state:
 with st.sidebar:
     st.header("Models & Settings")
     with st.status("Initializing...", expanded=False) as status:
-        asr_model = load_asr_model()
-        llm = load_ollama_llm()
-        embeddings = load_ollama_embeddings()
-        
+        asr_model = load_groq_client()     
+        llm = load_groq_llm()          
+        embeddings = load_embeddings()    # HF embeddings
+
+        st.session_state["llm"] = llm
+        st.session_state["embeddings"] = embeddings
+
         st.session_state["llm"] = llm
         st.session_state["embeddings"] = embeddings
 
@@ -355,14 +349,14 @@ with st.sidebar:
     )
     asr_language = None if asr_language == "Auto" else asr_language
 
-    st.subheader("Ollama Options")
-    st.caption("Configured in code; threads capped to CPU cores for speed.")
-    st.write(
-        f"- Base URL: {OLLAMA_BASE_URL}\n"
-        f"- LLM: `{OLLAMA_LLM_MODEL}`\n"
-        f"- Embeddings: `{OLLAMA_EMBEDDING_MODEL}`\n"
-        f"- num_predict: {OLLAMA_NUM_PREDICT}"
-    )
+    # st.subheader("Ollama Options")
+    # st.caption("Configured in code; threads capped to CPU cores for speed.")
+    # st.write(
+    #     f"- Base URL: {OLLAMA_BASE_URL}\n"
+    #     f"- LLM: `{OLLAMA_LLM_MODEL}`\n"
+    #     f"- Embeddings: `{OLLAMA_EMBEDDING_MODEL}`\n"
+    #     f"- num_predict: {OLLAMA_NUM_PREDICT}"
+    # )
     st.subheader("ASR Settings")
     st.write(f"- Model: `{ASR_MODEL_SIZE}` · Device: `{ASR_DEVICE}` · Compute: `{ASR_COMPUTE}`")
 
@@ -422,9 +416,9 @@ if media_file is not None and file_type.startswith("Media"):
         # Transcribe
         content: Optional[str] = None
         if asr_model:
-            content = transcribe_media_file_fast(
-                asr_model,
-                file_path,
+            content = transcribe_media_file(
+                client=asr_model,
+                file_path=file_path,
                 cache_key=file_id,
                 lang=asr_language
             )
@@ -522,7 +516,7 @@ if pdf_files and file_type.startswith("Document"):
         st.session_state.rag_chain = create_rag_chain(llm, embeddings)
 
 # After handling media and/or documents, generate initial notes if needed
-generate_initial_notes_if_needed()
+generate_initial_notes_if_needed(llm=llm, embeddings=embeddings)
 
 # -----------------------------
 # Q&A Section

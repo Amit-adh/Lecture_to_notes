@@ -2,14 +2,12 @@
 import os
 import re
 import uuid
-from pathlib import Path
-from typing import Optional, Any, List
+# from pathlib import Path
+from typing import Optional, Any
 from filelock import FileLock
 
 import streamlit as st
 from langchain_community.vectorstores import Chroma
-from langchain_community.embeddings import OllamaEmbeddings
-from langchain_community.llms import Ollama  # only if used elsewhere, kept for typing-style clarity
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
@@ -133,7 +131,7 @@ if not session_id:
     st.session_state.session_id = session_id
 
 
-def get_vectorstore_pure(embeddings: OllamaEmbeddings, session_id: str, chroma_dir: str):
+def get_vectorstore_pure(embeddings: Any, session_id: str, chroma_dir: str):
     """
     Return a Chroma vectorstore instance for the given session_id and directory.
     Pure: no caching, no Streamlit.
@@ -148,7 +146,7 @@ def get_vectorstore_pure(embeddings: OllamaEmbeddings, session_id: str, chroma_d
 
 def add_content_to_vectorstore_pure(
     content: str,
-    embeddings: OllamaEmbeddings,
+    embeddings: Any,
     doc_id: str,
     source_name: str,
     vs: Chroma,
@@ -273,14 +271,14 @@ def generate_initial_notes_from_text(
 ) -> str:
     
     """
-    Pure function: given combined document text and an LLM,
+    Given combined document text and an LLM,
     return the initial notes string (MAIN TOPICS + SUMMARY OF EACH TOPIC).
-    No Streamlit, no session_state, no side effects.
     """
     # reuse your existing helper
     combined_text = build_stratified_context(combined_text, max_chars)
 
-    raw_notes = llm.invoke(auto_prompt_template.format(combined_text=combined_text))
+    result = llm.invoke(auto_prompt_template.format(combined_text=combined_text))
+    raw_notes = result.content if hasattr(result, "content") else str(result)
     notes = normalize_bullets(raw_notes)
 
     # same sanity check as before

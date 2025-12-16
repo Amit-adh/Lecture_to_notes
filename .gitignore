@@ -13,3 +13,5 @@ uploads/
 
 chroma_db/
 transcripts/
+
+*.env
