@@ -1,3 +1,4 @@
+.venv/
 venv/
 venv-tf/
 venv-torch/
@@ -15,4 +16,5 @@ chroma_db/
 transcripts/
 
 *.env
-.streamlit/secrets.toml
+.streamlit/
+config.py
