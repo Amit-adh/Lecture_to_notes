@@ -12,15 +12,6 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 
-# NOTE: this module expects the following names to exist in your environment or st.session_state:
-# - CHROMA_DIR (string): persistent chroma directory (from your main.py config)
-# - MAX_DOC_CHARS (int), INITIAL_SUMMARY_MAX_CHARS (int)
-# They were originally module-level constants in main.py. If they are still defined in main.py,
-# the module will use them via globals(); otherwise you can set them in st.session_state or env.
-
-# If your main.py still defines module-level constants, they will be visible here if main imports this module
-# after defining them. But to be robust we also attempt a few sensible fallbacks:
-
 
 CHROMA_DIR = os.environ.get("CHROMA_DIR", "chroma_db")
 MAX_DOC_CHARS = int(os.environ.get("MAX_DOC_CHARS", "200000"))
