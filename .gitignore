@@ -17,4 +17,3 @@ transcripts/
 
 *.env
 .streamlit/
-config.py
