@@ -7,7 +7,7 @@ import hashlib
 from typing import Optional
 
 # --- LLM / RAG ---
-from transformers import logging as hf_logging  # quiet HF logs (not used for ASR now
+from transformers import logging as hf_logging  # quiet HF logs
 from groq import Groq
 from langchain_groq import ChatGroq
 from langchain_community.embeddings import HuggingFaceEmbeddings
@@ -25,11 +25,10 @@ os.environ.setdefault("OPENBLAS_NUM_THREADS", str(MAX_THREADS))
 os.environ.setdefault("MKL_NUM_THREADS", str(MAX_THREADS))
 
 
-
-
 # -----------------------------
 # Global Configuration
 # -----------------------------
+
 st.set_page_config(page_title="AI Document & Media Q&A", layout="wide")
 
 # ASR model sizing (adjust for your machine)
@@ -55,6 +54,16 @@ from core.file_utils import (
     save_uploaded_file,
     cached_transcript_path,
     normalize_to_wav16k,
+)
+
+
+from core.doc_utils import (
+    clamp_content,
+    get_vectorstore_pure,
+    add_content_to_vectorstore_pure,
+    create_rag_chain_pure,
+    generate_initial_notes_from_text,
+    stream_answer,
 )
 
 # -----------------------------
@@ -98,6 +107,7 @@ def load_embeddings():
     st.write("HF embeddings ready.")
     return embeddings
 
+
 # -----------------------------
 # Cached Data Helpers
 # -----------------------------
@@ -121,6 +131,7 @@ def load_pdf_text_cached(file_path: str) -> Optional[str]:
 # -----------------------------
 # Core Processing
 # -----------------------------
+
 def transcribe_media_file(
     client, 
     file_path: str, 
@@ -151,7 +162,7 @@ def transcribe_media_file(
     final_text: Optional[str]
     
     with st.spinner("Transcribing audio..."):
-         # Call Groq Whisper
+        # Call Groq Whisper
         try:
             with open(wav_path, "rb") as audio_file:
                 transcription = client.audio.transcriptions.create(
@@ -172,17 +183,6 @@ def transcribe_media_file(
     return final_text
 
 
-
-from core.doc_utils import (
-    clamp_content,
-    get_vectorstore_pure,
-    add_content_to_vectorstore_pure,
-    create_rag_chain_pure,
-    generate_initial_notes_from_text,
-    stream_answer,
-)
-
-
 # cached resource for vectorstore (Streamlit)
 @st.cache_resource
 def get_vectorstore_cached(_embeddings, session_id):
@@ -194,7 +194,7 @@ def add_content_to_vectorstore(
     embeddings,
     doc_id: str,
     source_name: str,
-    split_fn,  # pass split_text_cached from main.py
+    split_fn,
 ):
     content = clamp_content(content)
     vs = get_vectorstore_cached(embeddings, st.session_state.session_id)
@@ -374,7 +374,6 @@ if media_file is not None and file_type.startswith("Media"):
     if file_id not in st.session_state.doc_ids:
         # Save the upload once with a safe name
         try:
-            # file_path, safe_name = save_uploaded_file(media_file)
             file_path, safe_name = save_uploaded_file(media_file, UPLOAD_DIR, MAX_FILE_MB)
             
         except ValueError as e:
@@ -451,7 +450,6 @@ if pdf_files and file_type.startswith("Document"):
 
             # Load PDF text
             text = load_pdf_text_cached(file_path)
-            # st.write("DEBUG load_pdf_text_cached returned:", repr(text)[:200])
             content: Optional[str] = None
 
             if text and not text.startswith("__PDF_ERROR__::"):
