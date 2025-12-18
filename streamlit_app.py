@@ -52,8 +52,12 @@ hf_logging.set_verbosity_error()
 from core.file_utils import (
     cleanup_upload_dir,
     save_uploaded_file,
+)
+
+from core.media_utils import (
     cached_transcript_path,
     normalize_to_wav16k,
+    transcribe_wav_groq,
 )
 
 
@@ -145,6 +149,7 @@ def transcribe_media_file(
     """
     cache_path = cached_transcript_path(cache_key, TRANSCRIPT_CACHE_DIR)
 
+    # Disk cache
     if os.path.exists(cache_path):
         st.info("Using cached transcript.")
         with open(cache_path, "r", encoding="utf-8") as f:
@@ -152,8 +157,13 @@ def transcribe_media_file(
 
     st.info("Starting transcription...")
 
+    # Normalize audio
     try:
-        wav_path = normalize_to_wav16k(file_path, cache_key, UPLOAD_DIR)
+        wav_path = normalize_to_wav16k(
+            input_path=file_path,
+            content_hash=cache_key,
+            upload_dir=UPLOAD_DIR,
+        )
     except Exception as e:
         st.error(f"Audio preprocessing failed: {e}")
         return None
@@ -162,18 +172,14 @@ def transcribe_media_file(
     final_text: Optional[str]
     
     with st.spinner("Transcribing audio..."):
-        # Call Groq Whisper
-        try:
-            with open(wav_path, "rb") as audio_file:
-                transcription = client.audio.transcriptions.create(
-                    file=audio_file,
-                    model="whisper-large-v3",
-                    language=lang,   # None = auto-detect
-                )
-            final_text = transcription.text.strip()
-
-        except Exception as e:
-            st.error(f"Transcription error: {e}")
+        final_text = transcribe_wav_groq(
+            client=client,
+            wav_path=wav_path,
+            lang=lang,
+        )
+        
+        if not text:
+            st.error("Transcription failed.")
             return None
 
     with open(cache_path, "w", encoding="utf-8") as f:

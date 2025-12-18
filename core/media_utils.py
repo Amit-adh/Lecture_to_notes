@@ -30,9 +30,9 @@ def ffmpeg_to_wav16k_mono(src: str, dst: str, ffmpeg_bin: str = "ffmpeg", timeou
         raise RuntimeError(f"ffmpeg failed: {e}")
 
 
-def normalize_to_wav16k(input_path: str, content_hash: str, upload_dir: str, ffmpeg_bin: str = "ffmpeg") -> str:
+def normalize_to_wav16k(input_path: str,content_hash: str,upload_dir: str,) -> str:
     """
-    Cache-normalize to 16k mono WAV by content hash. Returns path to WAV file.
+    Cache-normalize media to 16kHz mono WAV.
     """
     
     wav_path = normalized_wav_cache_path(content_hash, upload_dir)
@@ -40,35 +40,9 @@ def normalize_to_wav16k(input_path: str, content_hash: str, upload_dir: str, ffm
         return wav_path
 
     tmp_path = wav_path + ".tmp"
-    ffmpeg_to_wav16k_mono(input_path, tmp_path, ffmpeg_bin=ffmpeg_bin)
+    ffmpeg_to_wav16k_mono(input_path, tmp_path)
     os.replace(tmp_path, wav_path)
     return wav_path
-
-
-
-def ffmpeg_to_wav16k_mono(src: str, dst: str) -> None:
-    cmd = [
-        "ffmpeg", "-y",
-        "-hide_banner", "-loglevel", "error",
-        "-i", src,
-        "-vn", "-sn", "-dn",
-        "-ac", "1",
-        "-ar", "16000",
-        "-f", "wav",
-        dst,
-    ]
-    subprocess.run(cmd, check=True, timeout=300)
-
-
-def normalize_to_wav16k(src: str, dst: str) -> str:
-    """
-    Normalize any media file to 16kHz mono WAV.
-    """
-    if os.path.exists(dst):
-        return dst
-
-    ffmpeg_to_wav16k_mono(src, dst)
-    return dst
 
 
 def transcribe_wav_groq(
