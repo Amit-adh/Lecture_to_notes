@@ -178,7 +178,7 @@ def transcribe_media_file(
             lang=lang,
         )
         
-        if not text:
+        if not final_text:
             st.error("Transcription failed.")
             return None
 
