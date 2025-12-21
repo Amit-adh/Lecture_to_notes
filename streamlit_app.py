@@ -56,9 +56,9 @@ from core.file_utils import (
 
 from core.media_utils import (
     cached_transcript_path,
-    normalize_to_wav16k,
+    # normalize_to_wav16k,
+    ffmpeg_chunk_to_wav16k,
     transcribe_wav_groq,
-    ffmpeg_chunk_to_wav16k
 )
 
 
@@ -157,18 +157,6 @@ def transcribe_media_file(
             return f.read()
 
     st.info("Starting transcription...")
-
-    # Normalize audio
-    try:
-        wav_path = normalize_to_wav16k(
-            input_path=file_path,
-            content_hash=cache_key,
-            upload_dir=UPLOAD_DIR,
-        )
-    except Exception as e:
-        st.error(f"Audio preprocessing failed: {e}")
-        return None
-    
    
     final_text: Optional[str]
     

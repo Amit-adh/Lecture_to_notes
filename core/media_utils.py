@@ -8,26 +8,26 @@ def cached_transcript_path(content_hash: str, transcript_cache_dir: str) -> str:
     return os.path.join(transcript_cache_dir, f"{content_hash}.txt")
 
 
-def normalized_wav_cache_path(content_hash: str, upload_dir: str) -> str:
-    return os.path.join(upload_dir, f"{content_hash}_16k.wav")
+# def normalized_wav_cache_path(content_hash: str, upload_dir: str) -> str:
+#     return os.path.join(upload_dir, f"{content_hash}_16k.wav")
 
 
-def ffmpeg_to_wav16k_mono(src: str, dst: str, ffmpeg_bin: str = "ffmpeg", timeout: int = 300):
-    """
-    Convert audio/video at `src` to 16kHz mono WAV at `dst` using ffmpeg.
-    Preserves original exceptions (TimeoutExpired -> RuntimeError, CalledProcessError -> RuntimeError).
-    """
-    cmd = [
-        ffmpeg_bin, "-y", "-hide_banner", "-loglevel", "error",
-        "-i", src, "-vn", "-sn", "-dn",
-        "-ac", "1", "-ar", "16000", "-f", "wav", dst
-    ]
-    try:
-        subprocess.run(cmd, check=True, timeout=timeout)
-    except subprocess.TimeoutExpired:
-        raise RuntimeError("Audio conversion timed out.")
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"ffmpeg failed: {e}")
+# def ffmpeg_to_wav16k_mono(src: str, dst: str, ffmpeg_bin: str = "ffmpeg", timeout: int = 300):
+#     """
+#     Convert audio/video at `src` to 16kHz mono WAV at `dst` using ffmpeg.
+#     Preserves original exceptions (TimeoutExpired -> RuntimeError, CalledProcessError -> RuntimeError).
+#     """
+#     cmd = [
+#         ffmpeg_bin, "-y", "-hide_banner", "-loglevel", "error",
+#         "-i", src, "-vn", "-sn", "-dn",
+#         "-ac", "1", "-ar", "16000", "-f", "wav", dst
+#     ]
+#     try:
+#         subprocess.run(cmd, check=True, timeout=timeout)
+#     except subprocess.TimeoutExpired:
+#         raise RuntimeError("Audio conversion timed out.")
+#     except subprocess.CalledProcessError as e:
+#         raise RuntimeError(f"ffmpeg failed: {e}")
 
 def ffmpeg_chunk_to_wav16k(
     src: str,
@@ -62,19 +62,19 @@ def ffmpeg_chunk_to_wav16k(
 
 
 
-def normalize_to_wav16k(input_path: str,content_hash: str,upload_dir: str,) -> str:
-    """
-    Cache-normalize media to 16kHz mono WAV.
-    """
+# def normalize_to_wav16k(input_path: str,content_hash: str,upload_dir: str,) -> str:
+#     """
+#     Cache-normalize media to 16kHz mono WAV.
+#     """
     
-    wav_path = normalized_wav_cache_path(content_hash, upload_dir)
-    if os.path.exists(wav_path):
-        return wav_path
+#     wav_path = normalized_wav_cache_path(content_hash, upload_dir)
+#     if os.path.exists(wav_path):
+#         return wav_path
 
-    tmp_path = wav_path + ".tmp"
-    ffmpeg_to_wav16k_mono(input_path, tmp_path)
-    os.replace(tmp_path, wav_path)
-    return wav_path
+#     tmp_path = wav_path + ".tmp"
+#     ffmpeg_to_wav16k_mono(input_path, tmp_path)
+#     os.replace(tmp_path, wav_path)
+#     return wav_path
 
 
 def transcribe_wav_groq(
