@@ -29,6 +29,38 @@ def ffmpeg_to_wav16k_mono(src: str, dst: str, ffmpeg_bin: str = "ffmpeg", timeou
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"ffmpeg failed: {e}")
 
+def ffmpeg_chunk_to_wav16k(
+    src: str,
+    out_dir: str,
+    chunk_seconds: int = 60,
+    ffmpeg_bin: str = "ffmpeg",
+):
+    """
+    Split media into 16kHz mono WAV chunks.
+    Returns list of chunk paths.
+    """
+    os.makedirs(out_dir, exist_ok=True)
+
+    pattern = os.path.join(out_dir, "chunk_%03d.wav")
+
+    cmd = [
+        ffmpeg_bin, "-y",
+        "-i", src,
+        "-vn", "-sn", "-dn",
+        "-ac", "1", "-ar", "16000",
+        "-f", "segment",
+        "-segment_time", str(chunk_seconds),
+        pattern
+    ]
+
+    subprocess.run(cmd, check=True)
+    return sorted(
+        os.path.join(out_dir, f)
+        for f in os.listdir(out_dir)
+        if f.endswith(".wav")
+    )
+
+
 
 def normalize_to_wav16k(input_path: str,content_hash: str,upload_dir: str,) -> str:
     """

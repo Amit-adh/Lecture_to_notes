@@ -58,6 +58,7 @@ from core.media_utils import (
     cached_transcript_path,
     normalize_to_wav16k,
     transcribe_wav_groq,
+    ffmpeg_chunk_to_wav16k
 )
 
 
@@ -172,12 +173,39 @@ def transcribe_media_file(
     final_text: Optional[str]
     
     with st.spinner("Transcribing audio..."):
-        final_text = transcribe_wav_groq(
-            client=client,
-            wav_path=wav_path,
-            lang=lang,
-        )
+        chunk_dir = os.path.join(UPLOAD_DIR, f"{cache_key}_chunks")
         
+        # chunk the audio into smaller chunks to handle free tier limits.
+
+        chunk_paths = ffmpeg_chunk_to_wav16k(
+            src=file_path,
+            out_dir=chunk_dir,
+            chunk_seconds=60,
+        )
+
+        full_text = []
+
+        for i, chunk_path in enumerate(chunk_paths):
+            st.info(f"Transcribing chunk {i+1}/{len(chunk_paths)}")
+
+            text = transcribe_wav_groq(
+                client=client,
+                wav_path=chunk_path,
+                lang=lang,
+            )
+
+            if not text:
+                st.error(f"Chunk {i+1} failed.")
+                return None
+
+            full_text.append(text)
+
+        final_text = " ".join(full_text)
+
+        for p in chunk_paths:
+            os.remove(p)
+        os.rmdir(chunk_dir)
+
         if not final_text:
             st.error("Transcription failed.")
             return None
